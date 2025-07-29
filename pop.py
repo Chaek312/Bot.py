@@ -62,7 +62,11 @@ sent_messages = {}  # Хранит message_id отправленных сооб�
 message_times = []
 message_limit = 35  # Лимит на 30 сообщений в секунду
 interval = 1  # Интервал в 1 секунду
-
+user_data = {}
+broadcast_status = {
+    'is_paused': False,
+    'is_stopped': False
+}
 
 game_start_lock = threading.Lock()
 
@@ -769,25 +773,24 @@ def notify_mafia(chat, sender_name, sender_last_name, message, sender_id):
     sender_full_name = f"{sender_name} {sender_last_name}"
     for player_id, player in chat.players.items():
         if player['role'] in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон'] and player_id != sender_id:
-            role = 'Дон' if chat.players[sender_id]['role'] == '🧔🏻‍♂️ Дон' else 'Мафия'
+            # Формируем префикс с эмодзи и ролью
+            if chat.players[sender_id]['role'] == '🧔🏻‍♂️ Дон':
+                prefix = f"🧔🏻‍♂️ Дон {sender_full_name}:"
+            else:
+                prefix = f"🤵🏻 Мафия {sender_full_name}:"
+
             try:
                 send_message(
                     player_id, 
-                    f"*{role} {sender_full_name}:*\n{message}", 
+                    f"*{prefix}*\n{message}", 
                     parse_mode='Markdown', 
-                    protect_content=True  # Добавлено
+                    protect_content=True
                 )
             except Exception as e:
                 print(f"Не удалось отправить сообщение мафии {player.get('name')} {player.get('last_name', '')}: {e}")
-
-        if player['role'] == '👨🏼‍💼 Қорғаушы':
-            try:
-                if chat.players[sender_id]['role'] == '🧔🏻‍♂️ Дон':
-                    send_message(player_id, f"🧔🏻‍♂️ Дон ???:\n{message}", protect_content=True)  # Добавлено
-                else:
-                    send_message(player_id, f"🤵🏻 Мафия ???:\n{message}", protect_content=True)  # Добавлено
-            except Exception as e:
-                print(f"Не удалось отправить сообщение адвокату {player.get('name')} {player.get('last_name', '')}: {e}")
+        elif player['role'] == '👨🏼‍💼 Қорғаушы':
+            # Пропускаем отправку адвокату, как обсуждали ранее
+            pass
                 
 def notify_at_59_seconds(chat_id):
     """Уведомление за 59 секунд до окончания регистрации."""
@@ -970,10 +973,8 @@ def notify_mafia_and_don(chat):
                 print(f"Не удалось отправить сообщение игроку {player['name']} ({player_id}): {e}")
 
 def confirm_vote(chat_id, player_id, player_name, player_last_name, confirm_votes, player_list):
-    # Получаем язык чата
     lang = chat_settings.get(chat_id, {}).get("language", "kz")
 
-    # Тексты по языкам
     texts = {
         "kz": {
             "confirm_msg": "Расымен де {name} дегенді жазалағыңыз келе ме ?",
@@ -987,12 +988,10 @@ def confirm_vote(chat_id, player_id, player_name, player_last_name, confirm_vote
         }
     }
 
-    t = texts.get(lang, texts["kz"])  # используем казахский по умолчанию
-
+    t = texts.get(lang, texts["kz"])
     full_name = f"{player_name} {player_last_name}"
     full_name_link = f"[{full_name}](tg://user?id={player_id})"
 
-    # Проверяем, было ли уже отправлено сообщение для этого игрока
     if player_id in sent_messages:
         logging.info(f"Сообщение подтверждения для {full_name} уже отправлено.")
         return sent_messages[player_id], t["confirm_msg"].format(name=full_name)
@@ -1012,13 +1011,18 @@ def confirm_vote(chat_id, player_id, player_name, player_last_name, confirm_vote
 
     logging.info(f"Сообщение подтверждения голосования отправлено с message_id: {msg.message_id}")
     sent_messages[player_id] = msg.message_id
-    confirm_vote_timestamps[chat_id] = time.time()  # Записываем время создания голосования
+    confirm_vote_timestamps[chat_id] = time.time()
 
-    # Сохраняем ID сообщения подтверждения в объекте чата
     chat = chat_list.get(chat_id)
     if chat:
         chat.confirm_message_id = msg.message_id
-        chat.confirm_votes_active = True  # Активируем голосование
+        chat.confirm_votes_active = True
+        chat.confirm_votes = {
+            'yes': confirm_votes['yes'],
+            'no': confirm_votes['no'],
+            'voted': {},
+            'player_id': player_id
+        }
 
     return msg.message_id, t["confirm_msg"].format(name=full_name_link)
 
@@ -2124,6 +2128,9 @@ def get_or_create_profile(user_id, user_name, user_last_name=None):
 
     return profile
 
+def update_profile(user_id, profile):
+    player_profiles[user_id] = profile
+
 def process_mafia_action(chat):
     lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
     mafia_victim = None
@@ -2498,6 +2505,7 @@ def send_zip_to_channel():
     except Exception as e:
         logging.error(f"Ошибка отправки ZIP-архива: {e}")
                 
+
 @bot.message_handler(commands=['start'])
 def start_message(message):
     user_id = message.from_user.id
@@ -2508,6 +2516,15 @@ def start_message(message):
         user_last_name = message.from_user.last_name if message.from_user.last_name else ""
         profile = get_or_create_profile(user_id, user_name, user_last_name)
         lang = profile.get('language', 'ru')  # Язык только для приветствия
+
+        full_name = f"{user_name} {user_last_name}".strip()
+        words_count = len(full_name.split())
+        symbols_count = len(full_name)
+
+        if words_count + symbols_count > 45:
+            msg = "❗ Ваш ник слишком длинный. Пожалуйста, сделайте его короче (сумма слов и символов не должна превышать 45)."
+            bot.send_message(user_id, msg)
+            return
 
         start_content = {
             'kz': {
@@ -3536,6 +3553,154 @@ def show_profile(message, user_id, message_id=None, user_name=None):
     else:
         bot.send_message(message.chat.id, texts[lang]['profile'], reply_markup=markup, parse_mode="Markdown")
 
+
+@bot.callback_query_handler(func=lambda call: call.data == 'djekpot')
+def handle_djekpot_info(call):
+    user_id = call.from_user.id
+    user_name = f"{call.from_user.first_name} {call.from_user.last_name or ''}".strip()
+    profile = get_or_create_profile(user_id, user_name)
+    lang = profile.get('language', 'ru')
+
+    texts = {
+        'ru': {
+            'info': "🎰 *Джекпот*\n\n"
+                    "Заплати 2 монеты и выиграй случайный приз:\n"
+                    "- 👑 VIP\n"
+                    "- 🪙 Монеты\n"
+                    "- 💶 Евро\n"
+                    "- ⚔️ Защита\n"
+                    "- 📁 Документы\n"
+                    "- 🔫 Пистолет\n"
+                    "- ⚖️ Защита от повешения",
+            'spin': "Крутить за 2 🪙",
+            'back': "🔙 Назад"
+        },
+        'kz': {
+            'info': "🎰 *Джекпот*\n\n"
+                    "2 монета төлеп, кездейсоқ сыйлықты ұтып алыңыз:\n"
+                    "- 👑 VIP\n"
+                    "- 🪙 Монета\n"
+                    "- 💶 Еуро\n"
+                    "- ⚔️ Қорғаныс\n"
+                    "- 📁 Құжат\n"
+                    "- 🔫 Тапанша\n"
+                    "- ⚖️ Дардан қорғаныс",
+            'spin': "2🪙 Айналдыру",
+            'back': "🔙 Артқа"
+        }
+    }
+
+    new_text = texts[lang]['info']
+
+    markup = types.InlineKeyboardMarkup()
+    spin_btn = types.InlineKeyboardButton(texts[lang]['spin'], callback_data='spin_jackpot')
+    back_btn = types.InlineKeyboardButton(texts[lang]['back'], callback_data='back_to_profile')
+    markup.add(spin_btn)
+    markup.add(back_btn)
+
+    try:
+        if call.message.text != new_text or call.message.reply_markup != markup:
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text=new_text,
+                reply_markup=markup,
+                parse_mode="Markdown"
+            )
+    except telebot.apihelper.ApiTelegramException as e:
+        if "message is not modified" not in str(e):
+            raise
+
+
+def roll_jackpot(profile, lang):
+    prizes = [
+        'vip',
+        'coins',
+        'euro',
+        'shield',
+        'fake_docs',
+        'gun',
+        'hanging_shield'
+    ]
+
+    weights = [10, 10, 25, 25, 25, 25, 25]  # редкие: vip и coins
+
+    prize = random.choices(prizes, weights=weights, k=1)[0]
+
+    labels = {
+        'ru': {
+            'vip': '👑 VIP',
+            'coins': '🪙 Монеты',
+            'euro': '💶 Евро',
+            'shield': '⚔️ Защита',
+            'fake_docs': '📁 Документы',
+            'gun': '🔫 Пистолет',
+            'hanging_shield': '⚖️ Защита от повешения'
+        },
+        'kz': {
+            'vip': '👑 VIP',
+            'coins': '🪙 Монета',
+            'euro': '💶 Еуро',
+            'shield': '⚔️ Қорғаныс',
+            'fake_docs': '📁 Құжат',
+            'gun': '🔫 Тапанша',
+            'hanging_shield': '⚖️ Дардан қорғаныс'
+        }
+    }
+
+    prize_text = labels[lang].get(prize, prize)
+
+    if prize == 'vip':
+        days = random.randint(1, 4)
+        profile['vip_until'] = (datetime.now() + timedelta(days=days)).strftime('%Y-%m-%d %H:%M:%S')
+        prize_text += f' на {days} д.' if lang == 'ru' else f' {days} күнге'
+    elif prize == 'coins':
+        amount = random.randint(1, 7)
+        profile['coins'] += amount
+        prize_text += f' x{amount}'
+    elif prize == 'euro':
+        amount = random.randint(150, 1000)
+        profile['euro'] += amount
+        prize_text += f' x{amount}'
+    else:
+        profile[prize] = profile.get(prize, 0) + 1
+
+    return prize, prize_text
+
+
+@bot.callback_query_handler(func=lambda call: call.data == 'spin_jackpot')
+def handle_spin_jackpot(call):
+    user_id = call.from_user.id
+    user_name = f"{call.from_user.first_name} {call.from_user.last_name or ''}".strip()
+    profile = get_or_create_profile(user_id, user_name)
+    lang = profile.get('language', 'ru')
+
+    texts = {
+        'ru': {
+            'no_coins': "❌ У вас недостаточно монет",
+            'win': "🎰 Вы выиграли: {}!"
+        },
+        'kz': {
+            'no_coins': "❌ Монета жеткіліксіз",
+            'win': "🎰 Сіз ұтып алдыңыз: {}!"
+        }
+    }
+
+    if profile['coins'] < 2:
+        bot.answer_callback_query(call.id, texts[lang]['no_coins'], show_alert=True)
+        return
+
+    profile['coins'] -= 2
+    prize, prize_text = roll_jackpot(profile, lang)
+    update_profile(user_id, profile)
+
+    win_message = texts[lang]['win'].format(prize_text)
+    bot.answer_callback_query(call.id, win_message, show_alert=True)
+
+    # Обновить меню (опционально, или можно не вызывать если не хочешь менять экран)
+    handle_djekpot_info(call)
+
+
 # Добавим новый обработчик для меню настроек
 @bot.callback_query_handler(func=lambda call: call.data == 'settings')
 def handle_settings(call):
@@ -3572,20 +3737,6 @@ def handle_settings(call):
     bot.edit_message_text(texts[lang]['title'], chat_id=call.message.chat.id, 
                          message_id=call.message.message_id, reply_markup=markup, parse_mode="Markdown")
 
-@bot.callback_query_handler(func=lambda call: call.data == "djekpot")
-def handle_djekpot(call):
-    user_id = call.from_user.id
-    user_name = f"{call.from_user.first_name} {call.from_user.last_name or ''}".strip()
-    profile = get_or_create_profile(user_id, user_name)
-
-    lang = profile.get('language', 'ru')  # по умолчанию казахский
-
-    texts = {
-        'kz': "🎰 Функция әзірлену үстінде",
-        'ru': "🎰 Функция в разработке"
-    }
-
-    bot.answer_callback_query(call.id, text=texts[lang], show_alert=False)
 
 # Добавим обработчик для смены языка
 @bot.callback_query_handler(func=lambda call: call.data == 'change_language')
@@ -4236,9 +4387,9 @@ def stop_game(message):
     global game_tasks, registration_timers, game_start_timers
 
     chat_id = message.chat.id
-    user_id = message.from_user.id
+    user_id = message.from_user.id if message.from_user else None
 
-    lang = chat_settings.get(chat_id, {}).get("language", "ru")  # Определяем язык
+    lang = chat_settings.get(chat_id, {}).get("language", "ru")
 
     texts = {
         "kz": {
@@ -4256,10 +4407,25 @@ def stop_game(message):
     except Exception as e:
         print(f"Ошибка при удалении сообщения: {e}")
 
-    if user_id != MY_USER_ID:
-        chat_member = bot.get_chat_member(chat_id, user_id)
-        if chat_member.status not in ['administrator', 'creator']:
-            return
+    is_admin = False
+
+    # Разрешить суперпользователю
+    if user_id == MY_USER_ID:
+        is_admin = True
+    # Обычный админ
+    elif user_id:
+        try:
+            chat_member = bot.get_chat_member(chat_id, user_id)
+            if chat_member.status in ['administrator', 'creator']:
+                is_admin = True
+        except Exception as e:
+            print(f"Ошибка при получении члена чата: {e}")
+    # Анонимный админ
+    elif message.sender_chat and message.sender_chat.id == chat_id:
+        is_admin = True
+
+    if not is_admin:
+        return
 
     chat = chat_list.get(chat_id)
     if not chat or (not chat.game_running and not chat.button_id):
@@ -4290,7 +4456,7 @@ def stop_registration_timer(message):
     global notification_timers, game_start_timers
 
     chat_id = message.chat.id
-    user_id = message.from_user.id
+    user_id = message.from_user.id if message.from_user else None
 
     lang = chat_settings.get(chat_id, {}).get("language", "ru")
 
@@ -4304,8 +4470,23 @@ def stop_registration_timer(message):
     except Exception as e:
         print(f"Ошибка при удалении сообщения: {e}")
 
-    chat_member = bot.get_chat_member(chat_id, user_id)
-    if chat_member.status not in ['administrator', 'creator']:
+    is_admin = False
+
+    # Проверка обычного пользователя
+    if user_id:
+        try:
+            chat_member = bot.get_chat_member(chat_id, user_id)
+            if chat_member.status in ['administrator', 'creator']:
+                is_admin = True
+        except Exception as e:
+            print(f"Ошибка при получении члена чата: {e}")
+
+    # Проверка анонимного администратора
+    elif message.sender_chat and message.sender_chat.id == chat_id:
+        # Сообщение пришло от имени группы — скорее всего, от анонимного админа
+        is_admin = True
+
+    if not is_admin:
         return
 
     timers_stopped = False
@@ -4343,56 +4524,156 @@ def add_chat(message):
 
 
 @bot.message_handler(commands=['рассылка'])
-def broadcast_message(message):
-    user_id = message.from_user.id
+def broadcast_command(message):
+    if message.from_user.id != ADMIN_ID:
+        return bot.reply_to(message, "⛔️ У тебя нет прав для этой команды.")
 
-    if user_id != 6265990443:
-        bot.reply_to(message, "⛔️ У тебя нет прав для этой команды.")
+    user_data[message.chat.id] = {}
+    msg = bot.reply_to(message, "✍️ Отправь текст для рассылки (Markdown или HTML поддерживается):")
+    bot.register_next_step_handler(msg, handle_text)
+
+def handle_text(message):
+    chat_id = message.chat.id
+    user_data[chat_id]['text'] = message.text
+    user_data[chat_id]['parse_mode'] = 'HTML' if '<b>' in message.text or '<i>' in message.text else 'Markdown'
+
+    msg = bot.reply_to(message, "📎 Теперь отправь медиа (фото, видео, гиф и т.д.) или напиши «нет»:")
+    bot.register_next_step_handler(msg, handle_media)
+
+def handle_media(message):
+    chat_id = message.chat.id
+    if message.text and message.text.lower() == 'нет':
+        user_data[chat_id]['media'] = None
+    else:
+        user_data[chat_id]['media'] = message
+
+    msg = bot.reply_to(message, "🔘 Введи кнопку и ссылку в формате:\n\n`Текст кнопки - https://example.com`", parse_mode="Markdown")
+    bot.register_next_step_handler(msg, handle_button)
+
+def handle_button(message):
+    chat_id = message.chat.id
+    keyboard = None
+
+    match = re.match(r'^(.+?)\s*-\s*(https?://[^\s]+)$', message.text.strip())
+    if match:
+        button_text, url = match.groups()
+        keyboard = types.InlineKeyboardMarkup()
+        button = types.InlineKeyboardButton(text=button_text.strip(), url=url.strip())
+        keyboard.add(button)
+
+    user_data[chat_id]['keyboard'] = keyboard
+    preview(chat_id, message)
+
+def preview(chat_id, message):
+    data = user_data[chat_id]
+    text = data['text']
+    keyboard = data.get('keyboard')
+    parse_mode = data['parse_mode']
+
+    try:
+        if data.get('media'):
+            bot.copy_message(chat_id, data['media'].chat.id, data['media'].message_id, caption=text, parse_mode=parse_mode, reply_markup=keyboard)
+        else:
+            bot.send_message(chat_id, text, parse_mode=parse_mode, reply_markup=keyboard)
+    except Exception as e:
+        bot.send_message(chat_id, f"❌ Ошибка предпросмотра: {e}")
+
+    confirm_markup = types.InlineKeyboardMarkup()
+    confirm_markup.add(
+        types.InlineKeyboardButton("✅ Рассылать", callback_data='start_broadcast'),
+        types.InlineKeyboardButton("♻️ Сбросить", callback_data='cancel_broadcast')
+    )
+    bot.send_message(chat_id, "Все готово. Начать рассылку?", reply_markup=confirm_markup)
+
+@bot.callback_query_handler(func=lambda call: call.data in ['start_broadcast', 'cancel_broadcast'])
+def callback_decision(call):
+    chat_id = call.message.chat.id
+
+    if call.data == 'cancel_broadcast':
+        user_data.pop(chat_id, None)
+        bot.edit_message_text("❌ Рассылка отменена.", chat_id, call.message.message_id)
         return
 
-    msg = bot.reply_to(message, "📨 Отправь сообщение или медиа для рассылки:")
-    bot.register_next_step_handler(msg, start_broadcast_thread)
+    broadcast_status['is_paused'] = False
+    broadcast_status['is_stopped'] = False
 
-def start_broadcast_thread(message):
-    thread = threading.Thread(target=send_broadcast, args=(message,))
+    bot.edit_message_text("🚀 Начинаем рассылку...", chat_id, call.message.message_id)
+
+    thread = threading.Thread(target=send_broadcast, args=(chat_id,))
     thread.start()
 
-def send_broadcast(message):
-    keyboard = None  
-    text = message.text
+def control_buttons():
+    markup = types.InlineKeyboardMarkup()
+    markup.row(
+        types.InlineKeyboardButton("⏸ Пауза", callback_data="pause_broadcast"),
+        types.InlineKeyboardButton("▶️ Продолжить", callback_data="resume_broadcast"),
+        types.InlineKeyboardButton("🛑 Остановить", callback_data="stop_broadcast")
+    )
+    return markup
 
-    match = re.search(r'\[([^\]]+)\]\((https?://[^\s]+)\)', text)
-    
-    if match:
-        button_text = match.group(1)
-        url = match.group(2)
+@bot.callback_query_handler(func=lambda call: call.data in ['pause_broadcast', 'resume_broadcast', 'stop_broadcast'])
+def handle_broadcast_controls(call):
+    chat_id = call.message.chat.id
 
-        keyboard = types.InlineKeyboardMarkup()
-        url_button = types.InlineKeyboardButton(text=button_text, url=url)
-        keyboard.add(url_button)
+    if call.data == 'pause_broadcast':
+        broadcast_status['is_paused'] = True
+        bot.answer_callback_query(call.id, "⏸ Рассылка приостановлена.")
 
-        text = re.sub(r'\[([^\]]+)\]\((https?://[^\s]+)\)', '', text).strip()
+    elif call.data == 'resume_broadcast':
+        broadcast_status['is_paused'] = False
+        bot.answer_callback_query(call.id, "▶️ Рассылка возобновлена.")
 
-    for player_id in player_profiles:
+    elif call.data == 'stop_broadcast':
+        broadcast_status['is_stopped'] = True
+        bot.answer_callback_query(call.id, "🛑 Рассылка остановлена.")
+
+def send_broadcast(chat_id):
+    data = user_data.get(chat_id)
+    if not data:
+        return
+
+    text = data['text']
+    media = data.get('media')
+    keyboard = data.get('keyboard')
+    parse_mode = data.get('parse_mode')
+
+    players = list(player_profiles)
+    random.shuffle(players)
+
+    success = 0
+    failed = 0
+
+    status_msg = bot.send_message(chat_id, f"📤 Рассылка началась...\n✅ Отправлено: 0\n⌛ Осталось: {len(players)}", reply_markup=control_buttons())
+
+    for idx, player_id in enumerate(players):
+        if broadcast_status['is_stopped']:
+            bot.edit_message_text("🛑 Рассылка остановлена.", chat_id, status_msg.message_id)
+            return
+
+        while broadcast_status['is_paused']:
+            time.sleep(1)
+
         try:
-            if message.content_type == 'text':
-                send_message(player_id, text, parse_mode="Markdown", reply_markup=keyboard)
-            elif message.content_type in ['photo', 'video', 'document', 'audio', 'voice']:
-                bot.copy_message(player_id, message.chat.id, message.message_id, reply_markup=keyboard)
-            
-            time.sleep(10)  # Задержка между отправками
+            if media:
+                bot.copy_message(player_id, media.chat.id, media.message_id, caption=text, parse_mode=parse_mode, reply_markup=keyboard)
+            else:
+                bot.send_message(player_id, text, parse_mode=parse_mode, reply_markup=keyboard)
+            success += 1
         except Exception as e:
-            logging.error(f"Не удалось отправить сообщение {player_id}: {e}")
+            logging.error(f"Ошибка отправки {player_id}: {e}")
+            failed += 1
 
-    bot.reply_to(message, "✅ Рассылка завершена.")
+        if idx % 5 == 0 or idx == len(players) - 1:
+            try:
+                bot.edit_message_text(f"📤 Рассылка продолжается...\n✅ Отправлено: {success}\n⌛ Осталось: {len(players) - success}",
+                                      chat_id, status_msg.message_id, reply_markup=control_buttons())
+            except:
+                pass
 
+        time.sleep(2)
 
-def send_message_to_player(player_id, message, text, keyboard):
-    """Отправка сообщения с учетом его типа (текст или медиа)"""
-    if message.content_type == 'text':
-        bot.send_message(player_id, text, parse_mode="Markdown", reply_markup=keyboard)
-    elif message.content_type in ['photo', 'video', 'document', 'audio', 'voice']:
-        bot.copy_message(player_id, message.chat.id, message.message_id, reply_markup=keyboard)
+    bot.edit_message_text(f"✅ Рассылка завершена.\n📬 Отправлено: {success}\n❌ Ошибок: {failed}", chat_id, status_msg.message_id)
+    user_data.pop(chat_id, None)
 
 
 # Команда /next для отправки уведомления о новой регистрации в чате
@@ -5677,68 +5958,80 @@ def callback_handler(call):
 
         # В callback_handler, внутри условия if call.data.startswith('confirm'):
         if call.data.startswith('confirm'):
-    # Проверяем что голосование идет в том же чате
-            if chat.chat_id != call.message.chat.id:
-                bot.answer_callback_query(call.id, 
-                    text="Сіз бұл дауыс беруге қатыса алмайсыз" if lang == 'kz' 
+            data_parts = call.data.split('_')
+            player_id = int(data_parts[1])
+            vote_confirmation = data_parts[2]
+            from_id = call.from_user.id
+            chat_id = call.message.chat.id
+            chat = chat_list.get(chat_id)
+            lang = chat_settings.get(chat_id, {}).get("language", "kz")
+
+            if chat.chat_id != chat_id:
+                bot.answer_callback_query(call.id,
+                    text="Сіз бұл дауыс беруге қатыса алмайсыз" if lang == 'kz'
                     else "Вы не можете участвовать в этом голосовании")
                 return
 
-    # Проверяем активно ли голосование
             if not getattr(chat, 'confirm_votes_active', True):
-                bot.answer_callback_query(call.id, 
-                    text="Дауыс беру аяқталды" if lang == 'kz' 
+                bot.answer_callback_query(call.id,
+                    text="Дауыс беру аяқталды" if lang == 'kz'
                     else "Голосование завершено")
                 return
 
-    # Проверяем частоту обновления (не чаще чем раз в 0.5 секунды)
-            last_update = confirm_vote_timestamps.get(chat.chat_id, 0)
-            if time.time() - last_update < 1:
-                bot.answer_callback_query(call.id, 
-                    text="Тым жиі!" if lang == 'kz' 
-                    else "Слишком часто!")
+    # Защита от повторного нажатия на ту же кнопку
+            previous_vote = chat.confirm_votes['voted'].get(from_id)
+            if previous_vote == vote_confirmation:
+                bot.answer_callback_query(call.id,
+                    text="Сіз бұл таңдау жасадыңыз" if lang == 'kz'
+                    else "Вы уже выбрали это")
                 return
 
-            player_id = int(data_parts[1])
-            vote_confirmation = data_parts[2]
+    # Убираем предыдущий голос
+            if previous_vote == 'yes':
+                chat.confirm_votes['yes'] -= 1
+            elif previous_vote == 'no':
+                chat.confirm_votes['no'] -= 1
 
-            if from_id in chat.confirm_votes['voted']:
-                previous_vote = chat.confirm_votes['voted'][from_id]
-                if previous_vote == 'yes':
-                    chat.confirm_votes['yes'] -= 1
-                elif previous_vote == 'no':
-                    chat.confirm_votes['no'] -= 1
-
+    # Учитываем новый голос
             chat.confirm_votes['voted'][from_id] = vote_confirmation
-
             if vote_confirmation == 'yes':
                 chat.confirm_votes['yes'] += 1
             elif vote_confirmation == 'no':
                 chat.confirm_votes['no'] += 1
 
+    # Формируем клавиатуру
             confirm_markup = types.InlineKeyboardMarkup()
             confirm_markup.add(
                 types.InlineKeyboardButton(f"👍🏼 {chat.confirm_votes['yes']}", callback_data=f"confirm_{player_id}_yes"),
                 types.InlineKeyboardButton(f"👎🏼 {chat.confirm_votes['no']}", callback_data=f"confirm_{player_id}_no")
             )
 
-    # Обновляем время последнего изменения
-            confirm_vote_timestamps[chat.chat_id] = time.time()
+    # Обновляем клавиатуру, если прошло >= 1 секунда
+            can_edit = time.time() - confirm_vote_timestamps.get(chat.chat_id, 0) >= 1
 
             try:
-                bot.edit_message_reply_markup(
-                    chat_id=call.message.chat.id,
-                    message_id=call.message.message_id,
-                    reply_markup=confirm_markup
-                )
-                bot.answer_callback_query(call.id, 
-                    text="Дауыс қабылданды!" if lang == 'kz' 
+                if can_edit:
+                    bot.edit_message_reply_markup(
+                        chat_id=chat_id,
+                        message_id=call.message.message_id,
+                        reply_markup=confirm_markup
+                    )
+                    confirm_vote_timestamps[chat.chat_id] = time.time()
+
+                bot.answer_callback_query(call.id,
+                    text="Дауыс қабылданды!" if lang == 'kz'
                     else "Голос принят!")
             except Exception as e:
                 logging.error(f"Ошибка при обновлении клавиатуры голосования: {e}")
 
-            alive_players_count = len([p for p in chat.players.values() if p['role'] != 'dead' and p['status'] == 'alive' and p != chat.confirm_votes['player_id']])
+    # Проверка завершения голосования
+            alive_players_count = len([
+                p for pid, p in chat.players.items()
+                if p['role'] != 'dead' and p['status'] == 'alive' and pid != chat.confirm_votes['player_id']
+            ])
+
             if chat.confirm_votes['yes'] + chat.confirm_votes['no'] == alive_players_count:
+                chat.confirm_votes_active = False
                 disable_vote_buttons(chat)
                 send_voting_results(chat, chat.players[player_id]['name'], chat.confirm_votes['yes'], chat.confirm_votes['no'])
 
