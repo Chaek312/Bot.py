@@ -39,4 +39,5 @@ async def main():
     print("Клиент запущен и слушает входящие сообщения...")
     await client.run_until_disconnected()
 
-await main()
+if __name__ == "__main__":
+    asyncio.run(main())
