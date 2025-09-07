@@ -2667,7 +2667,7 @@ def join_chat_callback(call):
     
     keyboard = types.InlineKeyboardMarkup()
     btn1 = types.InlineKeyboardButton(content['city_mafia'], url='https://t.me/CityMafiaKZ')
-    btn2 = types.InlineKeyboardButton(content['golden_mafia'], url='https://t.me/+WO8MLze4bZtlOTBi')
+    btn2 = types.InlineKeyboardButton(content['golden_mafia'], url='https://t.me/GMafiaKZ')
     keyboard.add(btn1)
     keyboard.add(btn2)
 
