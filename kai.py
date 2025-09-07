@@ -219,6 +219,7 @@ def _start_game(chat_id):
     mafia_ratio = chat_settings.get(chat_id, {}).get("mafia_ratio", 4)
     num_mafias = max(1, num_players // mafia_ratio)
     mafia_assigned = 0
+    roles_assigned = 0
 
     # Присвоение номеров игрокам
     numbers = list(range(1, num_players + 1))
@@ -226,87 +227,134 @@ def _start_game(chat_id):
     for i, (player_id, player_info) in enumerate(players_list):
         player_info['status'] = 'alive'
         player_info['number'] = numbers[i]
+        player_info['role'] = 'ждет'  # Сбрасываем роль
 
-    # Назначение Дона (первый в списке)
-    don_id = players_list[0][0]
-    change_role(don_id, chat.players, '🧔🏻‍♂️ Дон', '', chat)
-    chat.don_id = don_id
-    mafia_assigned += 1
+    # Собираем купленные роли
+    purchased_roles = {}
+    players_with_purchased_roles = set()
+    
+    for player_id, player_info in chat.players.items():
+        profile = get_or_create_profile(player_id, player_info['name'])
+        if profile.get('purchased_role'):
+            role = profile['purchased_role']
+            purchased_roles[player_id] = role
+            players_with_purchased_roles.add(player_id)
+            # Сбрасываем купленную роль после использования
+            profile['purchased_role'] = None
+            update_profile(player_id, profile)
+
+    # Функция для проверки, можно ли назначить роль
+    def can_assign_role(player_id, role_name):
+        if player_id in players_with_purchased_roles:
+            return purchased_roles[player_id] == role_name
+        return True
+
+    # Назначаем купленные роли
+    for player_id, role_type in purchased_roles.items():
+        if role_type == 'don' and not hasattr(chat, 'don_id'):
+            change_role(player_id, chat.players, '🧔🏻‍♂️ Дон', '', chat)
+            chat.don_id = player_id
+            mafia_assigned += 1
+            roles_assigned += 1
+        elif role_type == 'mafia' and mafia_assigned < num_mafias:
+            change_role(player_id, chat.players, '🤵🏻 Мафия', '', chat)
+            mafia_assigned += 1
+            roles_assigned += 1
+        elif role_type == 'doctor' and not hasattr(chat, 'doctor_id'):
+            change_role(player_id, chat.players, '👨🏼‍⚕️ Дәрігер', '', chat)
+            roles_assigned += 1
+        elif role_type == 'sheriff' and not hasattr(chat, 'sheriff_id'):
+            change_role(player_id, chat.players, '🕵🏼 Комиссар', '', chat)
+            chat.sheriff_id = player_id
+            roles_assigned += 1
+        elif role_type == 'suicide' and not hasattr(chat, 'suicide_id'):
+            change_role(player_id, chat.players, '🤦‍♂️ Самоубийца', '', chat)
+            chat.suicide_id = player_id
+            roles_assigned += 1
+        elif role_type == 'hobo' and not hasattr(chat, 'hobo_id'):
+            change_role(player_id, chat.players, '🧙‍♂️ Қаңғыбас', '', chat)
+            chat.hobo_id = player_id
+            roles_assigned += 1
+        elif role_type == 'lucky' and not hasattr(chat, 'lucky_id'):
+            change_role(player_id, chat.players, '🤞 Жолы болғыш', '', chat)
+            chat.lucky_id = player_id
+            roles_assigned += 1
+        elif role_type == 'kamikaze' and not hasattr(chat, 'kamikaze_id'):
+            change_role(player_id, chat.players, '💣 Камикадзе', '', chat)
+            chat.kamikaze_id = player_id
+            roles_assigned += 1
+        elif role_type == 'lover' and not hasattr(chat, 'lover_id'):
+            change_role(player_id, chat.players, '💃🏼 Көңілдес', '', chat)
+            chat.lover_id = player_id
+            roles_assigned += 1
+        elif role_type == 'lawyer' and not hasattr(chat, 'lawyer_id'):
+            change_role(player_id, chat.players, '👨🏼‍💼 Қорғаушы', '', chat)
+            roles_assigned += 1
+        elif role_type == 'sergeant' and not hasattr(chat, 'sergeant_id'):
+            change_role(player_id, chat.players, '👮🏼 Сержант', '', chat)
+            chat.sergeant_id = player_id
+            roles_assigned += 1
+        elif role_type == 'maniac' and not hasattr(chat, 'maniac_id'):
+            change_role(player_id, chat.players, '🔪 Жауыз', '', chat)
+            chat.maniac_id = player_id
+            roles_assigned += 1
+
+    # Назначение Дона (если не назначен через покупку)
+    if not hasattr(chat, 'don_id'):
+        for player_id, player_info in players_list:
+            if (player_id not in players_with_purchased_roles and 
+                chat.players[player_id]['role'] == 'ждет'):
+                change_role(player_id, chat.players, '🧔🏻‍♂️ Дон', '', chat)
+                chat.don_id = player_id
+                mafia_assigned += 1
+                roles_assigned += 1
+                break
 
     # Назначение Мафии
-    for i in range(1, num_players):
-        if mafia_assigned < num_mafias:
-            change_role(players_list[i][0], chat.players, '🤵🏻 Мафия', '', chat)
+    for player_id, player_info in players_list:
+        if (mafia_assigned < num_mafias and 
+            player_id not in players_with_purchased_roles and 
+            chat.players[player_id]['role'] == 'ждет' and 
+            player_id != getattr(chat, 'don_id', None)):
+            change_role(player_id, chat.players, '🤵🏻 Мафия', '', chat)
             mafia_assigned += 1
+            roles_assigned += 1
 
-    roles_assigned = mafia_assigned
+    # Список для назначения оставшихся специальных ролей
+    special_roles = [
+        ('doctor', '👨🏼‍⚕️ Дәрігер', 4, None),
+        ('suicide_id', '🤦‍♂️ Самоубийца', 30, 'suicide_id'),
+        ('hobo_id', '🧙‍♂️ Қаңғыбас', 8, 'hobo_id'),
+        ('sheriff_id', '🕵🏼 Комиссар', 6, 'sheriff_id'),
+        ('lucky_id', '🤞 Жолы болғыш', 7, 'lucky_id'),
+        ('kamikaze_id', '💣 Камикадзе', 12, 'kamikaze_id'),
+        ('lover_id', '💃🏼 Көңілдес', 10, 'lover_id'),
+        ('lawyer_id', '👨🏼‍💼 Қорғаушы', 16, None),
+        ('sergeant_id', '👮🏼 Сержант', 12, 'sergeant_id'),
+        ('maniac_id', '🔪 Жауыз', 14, 'maniac_id')
+    ]
 
-    # Назначение Доктора (при 4+ игроках)
-    if roles_assigned < num_players and num_players >= 4:
-        change_role(players_list[roles_assigned][0], chat.players, '👨🏼‍⚕️ Дәрігер', '', chat)
-        roles_assigned += 1
-
-    # Назначение Самоубийцы (при 30+ игроках)
-    if roles_assigned < num_players and num_players >= 30:
-        change_role(players_list[roles_assigned][0], chat.players, '🤦‍♂️ Самоубийца', '', chat)
-        chat.suicide_bomber_id = players_list[roles_assigned][0]
-        roles_assigned += 1
-
-    # Назначение Бомжа (при 8+ игроках)
-    if roles_assigned < num_players and num_players >= 8:
-        change_role(players_list[roles_assigned][0], chat.players, '🧙‍♂️ Қаңғыбас', '', chat)
-        chat.hobo_id = players_list[roles_assigned][0]
-        roles_assigned += 1
-
-    # Назначение Комиссара (при 6+ игроках)
-    if roles_assigned < num_players and num_players >= 6:
-        change_role(players_list[roles_assigned][0], chat.players, '🕵🏼 Комиссар', '', chat)
-        chat.sheriff_id = players_list[roles_assigned][0]
-        roles_assigned += 1
-
-    # Назначение Счастливчика (при 7+ игроках)
-    if roles_assigned < num_players and num_players >= 7:
-        change_role(players_list[roles_assigned][0], chat.players, '🤞 Жолы болғыш', '', chat)
-        chat.lucky_id = players_list[roles_assigned][0]
-        roles_assigned += 1
-
-    # Назначение Камикадзе (при 12+ игроках)
-    if roles_assigned < num_players and num_players >= 12:
-        change_role(players_list[roles_assigned][0], chat.players, '💣 Камикадзе', '', chat)
-        chat.suicide_bomber_id = players_list[roles_assigned][0]
-        roles_assigned += 1
-
-    # Назначение Любовницы (при 10+ игроках)
-    if roles_assigned < num_players and num_players >= 10:
-        change_role(players_list[roles_assigned][0], chat.players, '💃🏼 Көңілдес', '', chat)
-        chat.lover_id = players_list[roles_assigned][0]
-        roles_assigned += 1
-
-    # Назначение Адвоката (при 16+ игроках)
-    if roles_assigned < num_players and num_players >= 16:
-        change_role(players_list[roles_assigned][0], chat.players, '👨🏼‍💼 Қорғаушы', '', chat)
-        roles_assigned += 1
-
-    # Назначение Сержанта (при 12+ игроках)
-    if roles_assigned < num_players and num_players >= 12:
-        change_role(players_list[roles_assigned][0], chat.players, '👮🏼 Сержант', '', chat)
-        chat.sergeant_id = players_list[roles_assigned][0]
-        roles_assigned += 1
-
-    # Назначение Маньяка (при 14+ игроках)
-    if roles_assigned < num_players and num_players >= 14:
-        change_role(players_list[roles_assigned][0], chat.players, '🔪 Жауыз', '', chat)
-        chat.maniac_id = players_list[roles_assigned][0]
-        roles_assigned += 1
+    # Назначение специальных ролей
+    for attr_name, role_name, min_players, chat_attr in special_roles:
+        if (not hasattr(chat, attr_name) and 
+            roles_assigned < num_players and 
+            num_players >= min_players):
+            
+            for player_id, player_info in players_list:
+                if (player_id not in players_with_purchased_roles and 
+                    chat.players[player_id]['role'] == 'ждет'):
+                    
+                    change_role(player_id, chat.players, role_name, '', chat)
+                    if chat_attr:
+                        setattr(chat, chat_attr, player_id)
+                    roles_assigned += 1
+                    break
 
     # Остальные игроки - мирные жители
-    for i in range(roles_assigned, num_players):
-        change_role(players_list[i][0], chat.players, '👨🏼 Тату тұрғын', '', chat)
-
-    # Проверка, чтобы никто не остался без роли
-    for player_id, player_info in chat.players.items():
-        if player_info['role'] == 'ждет':
+    for player_id, player_info in players_list:
+        if chat.players[player_id]['role'] == 'ждет':
             change_role(player_id, chat.players, '👨🏼 Тату тұрғын', '', chat)
+            roles_assigned += 1
 
     # Запуск игрового цикла
     thread = threading.Thread(target=lambda: asyncio.run(game_cycle(chat_id)))
@@ -2073,58 +2121,51 @@ def process_night_actions(chat):
 
 
 def get_or_create_profile(user_id, user_name, user_last_name=None):
-    # Проверяем, существует ли профиль в словаре
     profile = player_profiles.get(user_id)
     
     if not profile:
-        # Если профиля нет, создаем новый
         profile = {
             'id': user_id,
             'name': user_name,
-            'last_name': user_last_name,  # Сохраняем фамилию
-            'euro': 0,  # Стартовый баланс
+            'last_name': user_last_name,
+            'euro': 0,
             'coins': 0,
             'shield': 0,
-            'hanging_shield': 0,  # Щит от повешения
+            'hanging_shield': 0,
             'fake_docs': 0,
-            'vip_until': '',        # Инициализация поля VIP
-            'shield_active': True,  # Флаг активности обычного щита
+            'vip_until': '',
+            'shield_active': True,
             'hanging_shield_active': True,
             'gun': 0,
             'gun_used': False,
-            'language': 'ru',  # Язык по умолчанию
-            'docs_active': True  # Флаг активности фальшивых документов
+            'language': 'ru',
+            'docs_active': True,
+            'purchased_role': None  # Новое поле для купленной роли
         }
-        # Сохраняем профиль в словаре
         player_profiles[user_id] = profile
     else:
-        # Обновляем имя и фамилию, если они изменились
         profile['name'] = user_name
         profile['last_name'] = user_last_name
 
-        # Добавляем недостающие ключи
-        if 'gun' not in profile:
-            profile['gun'] = 0
-        if 'gun_used' not in profile:
-            profile['gun_used'] = False
-        if 'fake_docs' not in profile:
-            profile['fake_docs'] = 0
-        if 'shield' not in profile:
-            profile['shield'] = 0
-        if 'coins' not in profile:
-            profile['coins'] = 0
-        if 'hanging_shield' not in profile:
-            profile['hanging_shield'] = 0
-        if 'vip_until' not in profile:
-            profile['vip_until'] = ''
-        if 'shield_active' not in profile:
-            profile['shield_active'] = True
-        if 'docs_active' not in profile:
-            profile['docs_active'] = True
-        if 'hanging_shield_active' not in profile:
-            profile['hanging_shield_active'] = True
-        if 'language' not in profile:
-            profile['language'] = 'kz'
+        # Добавляем недостающие поля
+        defaults = {
+            'gun': 0,
+            'gun_used': False,
+            'fake_docs': 0,
+            'shield': 0,
+            'coins': 0,
+            'hanging_shield': 0,
+            'vip_until': '',
+            'shield_active': True,
+            'docs_active': True,
+            'hanging_shield_active': True,
+            'language': 'kz',
+            'purchased_role': None
+        }
+        
+        for key, value in defaults.items():
+            if key not in profile:
+                profile[key] = value
 
     return profile
 
@@ -2313,7 +2354,8 @@ def handle_zip_upload(message):
                         'hanging_shield_active': parse_active_status(row.get('Щит от повешения активен', '🔴 OFF')),
                         'docs_active': parse_active_status(row.get('Документы активны', '🔴 OFF')),
                         'gun': int(row.get('Тапанша', 0) or 0),
-                        'language': row.get('Язык', 'kz')
+                        'language': row.get('Язык', 'kz'),
+                        'purchased_role': row.get('Активная роль', '')  # Добавляем активную роль
                     }
 
         # Обрабатываем player_scores.csv
@@ -2408,7 +2450,8 @@ def handle_document(message):
                                     'day_time': int(row['Day Time']),
                                     'voting_time': int(row['Voting Time']),
                                     'confirmation_time': int(row['Confirmation Time']),
-                                    'mafia_ratio': int(row['Mafia Ratio'])
+                                    'mafia_ratio': int(row['Mafia Ratio']),
+                                    'language': row.get('Language', 'kz')  # Добавляем язык
                                 }
                             except Exception as e:
                                 send_message(channel_id, f"❌ Ошибка в строке настроек: {e}")
@@ -2431,7 +2474,8 @@ def handle_document(message):
                                 'hanging_shield_active': parse_active_status(row.get('Щит от повешения активен', '🔴 OFF')),
                                 'docs_active': parse_active_status(row.get('Документы активны', '🔴 OFF')),
                                 'gun': int(row.get('Тапанша', 0) or 0),
-                                'language': row.get('Язык', 'ru')
+                                'language': row.get('Язык', 'kz'),
+                                'purchased_role': row.get('Активная роль', '')  # Добавляем активную роль
                             }
                         send_message(channel_id, "✅ Профили успешно загружены из файла.")
             except csv.Error as e:
@@ -2451,7 +2495,8 @@ def send_zip_to_channel():
         writer = csv.writer(profiles_csv)
         writer.writerow(['ID', 'Имя', 'Фамилия', 'Евро', 'Монета', 'Щит', 'Щит от повешения', 
                          'Поддельные документы', 'VIP до', 'Щит активен', 
-                         'Щит от повешения активен', 'Документы активны', 'Тапанша', 'Язык'])
+                         'Щит от повешения активен', 'Документы активны', 'Тапанша', 'Язык',
+                         'Активная роль'])  # Добавляем колонку для активной роли
         for user_id, profile in player_profiles.items():
             writer.writerow([
                 user_id,
@@ -2467,7 +2512,8 @@ def send_zip_to_channel():
                 '🟢 ON' if profile.get('hanging_shield_active', False) else '🔴 OFF',
                 '🟢 ON' if profile.get('docs_active', False) else '🔴 OFF',
                 profile.get('gun', 0),
-                profile.get('language', 'kz')  # Добавляем язык профиля
+                profile.get('language', 'kz'),
+                profile.get('purchased_role', '')  # Добавляем активную роль
             ])
         profiles_csv.seek(0)
         zip_file.writestr('player_profiles.csv', profiles_csv.getvalue())
@@ -2492,10 +2538,21 @@ def send_zip_to_channel():
                 settings['voting_time'],
                 settings['confirmation_time'],
                 settings['mafia_ratio'],
-                settings.get('language', 'ru')  # Добавляем язык чата
+                settings.get('language', 'kz')  # Добавляем язык чата
             ])
         settings_csv.seek(0)
         zip_file.writestr('chat_settings.csv', settings_csv.getvalue())
+
+        # Добавляем player_scores.csv
+        scores_csv = io.StringIO()
+        writer = csv.writer(scores_csv)
+        writer.writerow(['ID', 'Значение', 'Тип'])
+        for player_id, score in player_scores.items():
+            writer.writerow([player_id, score, 'player'])
+        for timer_id, time_value in game_timers.items():
+            writer.writerow([timer_id, time_value, 'timer'])
+        scores_csv.seek(0)
+        zip_file.writestr('player_scores.csv', scores_csv.getvalue())
 
     zip_buffer.seek(0)
     zip_buffer.name = 'game_data.zip'
@@ -2504,7 +2561,6 @@ def send_zip_to_channel():
         bot.send_document(channel_id, zip_buffer, caption="Архив с данными игры")
     except Exception as e:
         logging.error(f"Ошибка отправки ZIP-архива: {e}")
-                
 
 @bot.message_handler(commands=['start'])
 def start_message(message):
@@ -3474,7 +3530,6 @@ def handle_profile(message):
         user_name = f"{message.from_user.first_name} {message.from_user.last_name or ''}".strip()
         show_profile(message, user_id=user_id, user_name=user_name)
 
-# В функции show_profile изменим клавиатуру:
 def show_profile(message, user_id, message_id=None, user_name=None):
     if not user_name:
         user_name = f"{message.from_user.first_name} {message.from_user.last_name or ''}".strip()
@@ -3824,7 +3879,8 @@ def handle_toggle_protections(call):
         'buy_hanging_shield', 
         'back_to_profile', 
         'renew_vip', 
-        'buy_vip'
+        'buy_vip',
+        'back_to_shop'
     ]
 )
 def handle_shop_actions(call):
@@ -3849,7 +3905,9 @@ def handle_shop_actions(call):
                 'hanging': "⚖️ Дарға қарсы қорғаныс - 🪙 1",
                 'buy_vip': "👑 VIP сатып алy - 7 🪙",
                 'renew_vip': "👑 VIP жаңарту - 4 🪙",
-                'back': "🔙 Артқа"
+                'back': "🔙 Артқа",
+                'buy_role': "🎭 Рөл сатып алу - 🪙 1",
+                'back_to_shop': "🔙 Дүкенге оралу"
             },
             'purchase': {
                 'success': "✅ Сатып алу сәтті аяқталды",
@@ -3877,7 +3935,9 @@ def handle_shop_actions(call):
                 'hanging': "⚖️ Защита от повешения - 🪙 1",
                 'buy_vip': "👑 Купить VIP - 7 🪙",
                 'renew_vip': "👑 Продлить VIP - 4 🪙",
-                'back': "🔙 Назад"
+                'back': "🔙 Назад",
+                'buy_role': "🎭 Купить роль - 🪙 1",
+                'back_to_shop': "🔙 Вернуться в магазин"
             },
             'purchase': {
                 'success': "✅ Покупка успешно завершена",
@@ -3902,6 +3962,7 @@ def handle_shop_actions(call):
         buy_docs_btn = types.InlineKeyboardButton(t['buttons']['docs'], callback_data="buy_fake_docs")
         buy_gun_btn = types.InlineKeyboardButton(t['buttons']['gun'], callback_data="buy_gun")
         buy_hanging_shield_btn = types.InlineKeyboardButton(t['buttons']['hanging'], callback_data="buy_hanging_shield")
+        buy_role_btn = types.InlineKeyboardButton(t['buttons']['buy_role'], callback_data="buy_role")
 
         if profile.get('vip_until'):
             buy_vip_btn = types.InlineKeyboardButton(t['buttons']['renew_vip'], callback_data="renew_vip")
@@ -3914,6 +3975,7 @@ def handle_shop_actions(call):
         markup.add(buy_hanging_shield_btn)
         markup.add(buy_vip_btn)
         markup.add(buy_gun_btn)
+        markup.add(buy_role_btn)
         markup.add(back_btn)
 
         bot.edit_message_text(shop_text, chat_id=call.message.chat.id, message_id=call.message.message_id, reply_markup=markup, parse_mode="Markdown")
@@ -3926,6 +3988,7 @@ def handle_shop_actions(call):
         if profile['euro'] >= 600:
             profile['euro'] -= 600
             profile['gun'] += 1
+            update_profile(user_id, profile)
             
             bot.answer_callback_query(call.id, t['purchase']['success'], show_alert=True)
             
@@ -3936,6 +3999,7 @@ def handle_shop_actions(call):
         if profile['euro'] >= 100:
             profile['euro'] -= 100
             profile['shield'] += 1
+            update_profile(user_id, profile)
 
             bot.answer_callback_query(call.id, t['purchase']['shield'], show_alert=True)
         else:
@@ -3945,6 +4009,7 @@ def handle_shop_actions(call):
         if profile['euro'] >= 150:
             profile['euro'] -= 150
             profile['fake_docs'] += 1
+            update_profile(user_id, profile)
 
             bot.answer_callback_query(call.id, t['purchase']['docs'], show_alert=True)
         else:
@@ -3954,6 +4019,7 @@ def handle_shop_actions(call):
         if profile['coins'] >= 7:
             profile['coins'] -= 7
             profile['vip_until'] = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d %H:%M:%S')
+            update_profile(user_id, profile)
 
             bot.answer_callback_query(call.id, t['purchase']['vip_bought'], show_alert=True)
             
@@ -3966,6 +4032,7 @@ def handle_shop_actions(call):
             current_vip = datetime.strptime(profile['vip_until'], '%Y-%m-%d %H:%M:%S')
             new_vip_until = current_vip + timedelta(days=7)
             profile['vip_until'] = new_vip_until.strftime('%Y-%m-%d %H:%M:%S')
+            update_profile(user_id, profile)
 
             bot.answer_callback_query(call.id, t['purchase']['vip_renewed'], show_alert=True)
         else:
@@ -3975,6 +4042,7 @@ def handle_shop_actions(call):
         if profile['coins'] >= 1:
             profile['coins'] -= 1
             profile['hanging_shield'] += 1
+            update_profile(user_id, profile)
 
             bot.answer_callback_query(call.id, t['purchase']['hanging'], show_alert=True)
         else:
@@ -3982,6 +4050,130 @@ def handle_shop_actions(call):
 
     elif call.data == "back_to_profile":
         show_profile(call.message, message_id=call.message.message_id, user_id=user_id, user_name=user_name)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('role_'))
+def handle_role_purchase(call):
+    user_id = call.from_user.id
+    user_name = f"{call.from_user.first_name} {call.from_user.last_name or ''}".strip()
+    profile = get_or_create_profile(user_id, user_name)
+    lang = profile.get('language', 'ru')
+    
+    texts = {
+        'kz': {
+            'success': "✅ Рөл сәтті сатып алынды! Келесі ойында бұл рөлде боласыз.",
+            'no_money': "❌ Сатып алуға ақшаңыз жетпейді",
+            'already_has': "❌ Сізде қазірдің өзінде белсенді рөл бар"
+        },
+        'ru': {
+            'success': "✅ Роль успешно куплена! В следующей игре вы получите эту роль.",
+            'no_money': "❌ Недостаточно средств для покупки",
+            'already_has': "❌ У вас уже есть активная роль"
+        }
+    }
+    
+    t = texts[lang]
+    
+    # Проверяем, есть ли уже активная роль
+    if profile.get('purchased_role'):
+        bot.answer_callback_query(call.id, t['already_has'], show_alert=True)
+        return
+    
+    if profile['coins'] >= 1:
+        role = call.data[5:]  # Извлекаем роль из callback_data
+        profile['coins'] -= 1
+        profile['purchased_role'] = role
+        update_profile(user_id, profile)
+        
+        bot.answer_callback_query(call.id, t['success'], show_alert=True)
+    else:
+        bot.answer_callback_query(call.id, t['no_money'], show_alert=True)
+
+
+
+@bot.callback_query_handler(func=lambda call: call.data == 'buy_role')
+def handle_buy_role(call):
+    user_id = call.from_user.id
+    user_name = f"{call.from_user.first_name} {call.from_user.last_name or ''}".strip()
+    profile = get_or_create_profile(user_id, user_name)
+    lang = profile.get('language', 'ru')
+
+    texts = {
+        'kz': {
+            'title': "🎭 Рөлді таңдаңыз (1 🪙)",
+            'don': "🧔🏻‍♂️ Дон",
+            'mafia': "🤵🏻 Мафия", 
+            'doctor': "👨🏼‍⚕️ Дәрігер",
+            'sheriff': "🕵🏼 Комиссар",
+            'suicide': "🤦‍♂️ Самоубийца",
+            'hobo': "🧙‍♂️ Қаңғыбас",
+            'lucky': "🤞 Жолы болғыш",
+            'kamikaze': "💣 Камикадзе",
+            'lover': "💃🏼 Көңілдес",
+            'lawyer': "👨🏼‍💼 Қорғаушы",
+            'sergeant': "👮🏼 Сержант",
+            'maniac': "🔪 Жауыз",
+            'current': "Текущая роль: ",
+            'random': "🎲 Кездейсоқ",
+            'back': "🔙 Артқа"
+        },
+        'ru': {
+            'title': "🎭 Выберите роль (1 🪙)",
+            'don': "🧔🏻‍♂️ Дон",
+            'mafia': "🤵🏻 Мафия",
+            'doctor': "👨🏼‍⚕️ Доктор",
+            'sheriff': "🕵🏼 Комиссар",
+            'suicide': "🤦‍♂️ Самоубийца",
+            'hobo': "🧙‍♂️ Бомж",
+            'lucky': "🤞 Счастливчик",
+            'kamikaze': "💣 Камикадзе",
+            'lover': "💃🏼 Любовница",
+            'lawyer': "👨🏼‍💼 Адвокат",
+            'sergeant': "👮🏼 Сержант",
+            'maniac': "🔪 Маньяк",
+            'current': "Текущая роль: ",
+            'random': "🎲 Случайная",
+            'back': "🔙 Назад"
+        }
+    }
+    
+    t = texts[lang]
+    
+    # Получаем текущую активную роль пользователя
+    current_role = profile.get('purchased_role')
+    current_role_text = f"\n\n{t['current']}{t.get(current_role, t['random']) if current_role else t['random']}"
+    
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    
+    # Создаем кнопки для всех ролей
+    btn_don = types.InlineKeyboardButton(t['don'], callback_data="role_don")
+    btn_mafia = types.InlineKeyboardButton(t['mafia'], callback_data="role_mafia")
+    btn_doctor = types.InlineKeyboardButton(t['doctor'], callback_data="role_doctor")
+    btn_sheriff = types.InlineKeyboardButton(t['sheriff'], callback_data="role_sheriff")
+    btn_suicide = types.InlineKeyboardButton(t['suicide'], callback_data="role_suicide")
+    btn_hobo = types.InlineKeyboardButton(t['hobo'], callback_data="role_hobo")
+    btn_lucky = types.InlineKeyboardButton(t['lucky'], callback_data="role_lucky")
+    btn_kamikaze = types.InlineKeyboardButton(t['kamikaze'], callback_data="role_kamikaze")
+    btn_lover = types.InlineKeyboardButton(t['lover'], callback_data="role_lover")
+    btn_lawyer = types.InlineKeyboardButton(t['lawyer'], callback_data="role_lawyer")
+    btn_sergeant = types.InlineKeyboardButton(t['sergeant'], callback_data="role_sergeant")
+    btn_maniac = types.InlineKeyboardButton(t['maniac'], callback_data="role_maniac")
+    btn_back = types.InlineKeyboardButton(t['back'], callback_data="shop")
+    
+    # Добавляем кнопки в несколько рядов
+    markup.add(btn_don, btn_mafia, btn_doctor, btn_sheriff)
+    markup.add(btn_suicide, btn_hobo, btn_lucky, btn_kamikaze)
+    markup.add(btn_lover, btn_lawyer, btn_sergeant, btn_maniac)
+    markup.add(btn_back)
+
+    bot.edit_message_text(
+        t['title'] + current_role_text,
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        reply_markup=markup,
+        parse_mode="Markdown"
+    )
+
+
 
 def notify_vip_expiry():
     for user_id, profile in player_profiles.items():
