@@ -151,6 +151,214 @@ class Game:
                 except Exception as e:
                     print(f"Не удалось отправить сообщение игроку {full_name}: {e}")
 
+REQUIRED_CHANNEL = "@citymafianews"  # канал для подписки
+
+# Глобальные переменные
+gift_claims = {}
+current_gifts = {}
+gift_expire = None
+
+
+# 🔒 Проверка подписки
+def is_subscribed(user_id):
+    try:
+        member = bot.get_chat_member(REQUIRED_CHANNEL, user_id)
+        return member.status in ["member", "administrator", "creator"]
+    except:
+        return False
+
+
+# 🎁 Команда для игроков
+@bot.message_handler(commands=['gift'])
+def handle_gift_command(message):
+    global current_gifts, gift_claims, gift_expire
+
+    if message.chat.type != 'private':
+        try:
+        except:
+            pass
+        return
+
+    user_id = message.from_user.id
+    profile = get_or_create_profile(user_id, message.from_user.first_name)
+    lang = profile.get('language', 'ru')
+
+    # 🔒 Проверка подписки
+    if not is_subscribed(user_id):
+        texts = {
+            'kz': f"❌ Сыйлық алу үшін {REQUIRED_CHANNEL} каналына жазылыңыз!",
+            'ru': f"❌ Чтобы получить подарок, подпишитесь на канал {REQUIRED_CHANNEL}!"
+        }
+        bot.send_message(user_id, texts[lang])
+        return
+
+    # ⏳ Проверка срока действия подарков
+    if gift_expire and datetime.now() > gift_expire:
+        current_gifts = {}
+        gift_claims = {}
+        gift_expire = None
+        return
+
+    # Если подарки не установлены
+    if not current_gifts:
+        return
+
+    # Проверка — уже получал подарок или нет
+    if user_id in gift_claims:
+        return
+
+    # Выдаем подарки
+    rewards = []
+    for gift_type, gift_amount in current_gifts.items():
+        if gift_type == 'vip':
+            if profile.get('vip_until'):
+                current_vip = datetime.strptime(profile['vip_until'], '%Y-%m-%d %H:%M:%S')
+                new_vip_until = current_vip + timedelta(days=gift_amount)
+            else:
+                new_vip_until = datetime.now() + timedelta(days=gift_amount)
+            profile['vip_until'] = new_vip_until.strftime('%Y-%m-%d %H:%M:%S')
+            rewards.append(f"{gift_amount} күн 👑 VIP" if lang == 'kz' else f"{gift_amount} дней 👑 VIP")
+        else:
+            profile[gift_type] = profile.get(gift_type, 0) + gift_amount
+            reward_texts = {
+                'coins': {'kz': f"{gift_amount} 🪙", 'ru': f"{gift_amount} 🪙"},
+                'euro': {'kz': f"{gift_amount} 💶", 'ru': f"{gift_amount} 💶"},
+                'shield': {'kz': f"{gift_amount} ⚔️ Қорғаныс", 'ru': f"{gift_amount} ⚔️ Защита"},
+                'fake_docs': {'kz': f"{gift_amount} 📁 Құжат", 'ru': f"{gift_amount} 📁 Документы"},
+                'hanging_shield': {'kz': f"{gift_amount} ⚖️ Дарға қарсы қорғаныс", 'ru': f"{gift_amount} ⚖️ Защита от повешения"},
+                'gun': {'kz': f"{gift_amount} 🔫 Тапанша", 'ru': f"{gift_amount} 🔫 Пистолет"}
+            }
+            rewards.append(reward_texts[gift_type][lang])
+
+    gift_claims[user_id] = True
+    update_profile(user_id, profile)
+
+    if lang == 'kz':
+        message_text = "🎁 Сізге сыйлықтар:\n" + "\n".join(f"• {r}" for r in rewards)
+    else:
+        message_text = "🎁 Вам подарки:\n" + "\n".join(f"• {r}" for r in rewards)
+
+    bot.send_message(user_id, message_text)
+
+
+# ⚙️ Установка подарков (админ)
+@bot.message_handler(commands=['set_gift'])
+def set_gift_command(message):
+    global current_gifts, gift_claims, gift_expire
+
+    if message.from_user.id != ADMIN_ID:
+        return
+
+    try:
+        args = message.text.split()[1:]
+
+        if not args or args[0] == 'help':
+            help_text = """🎁 Установка подарков:
+/set_gift coins 10 - 10 монет
+/set_gift coins 10, euro 50 - несколько подарков
+/set_gift coins 10, vip 3 2d - подарки действуют 2 дня
+
+Срок можно указывать:
+1h = 1 час
+1d = 1 день
+30m = 30 минут
+
+Очистить:
+/set_gift clear"""
+            bot.reply_to(message, help_text)
+            return
+
+        if args[0] == 'clear':
+            current_gifts = {}
+            gift_claims = {}
+            gift_expire = None
+            bot.reply_to(message, "✅ Все подарки очищены!")
+            return
+
+        # Срок жизни
+        duration = None
+        if args[-1][-1] in ['h', 'd', 'm'] and args[-1][:-1].isdigit():
+            unit = args[-1][-1]
+            value = int(args[-1][:-1])
+            if unit == 'h':
+                duration = timedelta(hours=value)
+            elif unit == 'd':
+                duration = timedelta(days=value)
+            elif unit == 'm':
+                duration = timedelta(minutes=value)
+            args = args[:-1]
+
+        gifts = {}
+        valid_types = {
+            'coins': 'coins',
+            'euro': 'euro',
+            'shield': 'shield',
+            'docs': 'fake_docs',
+            'hanging': 'hanging_shield',
+            'vip': 'vip',
+            'gun': 'gun'
+        }
+
+        gift_args = ' '.join(args).split(',')
+        for gift_arg in gift_args:
+            gift_arg = gift_arg.strip()
+            if not gift_arg:
+                continue
+
+            parts = gift_arg.split()
+            if len(parts) < 2:
+                bot.reply_to(message, f"❌ Неверный формат: {gift_arg}")
+                return
+
+            gift_type = parts[0].lower()
+            try:
+                gift_amount = int(parts[1])
+            except ValueError:
+                bot.reply_to(message, f"❌ Количество должно быть числом: {gift_arg}")
+                return
+
+            if gift_type not in valid_types:
+                bot.reply_to(message, f"❌ Неверный тип подарка: {gift_type}")
+                return
+
+            gifts[valid_types[gift_type]] = gift_amount
+
+        current_gifts = gifts
+        gift_claims = {}
+        gift_expire = datetime.now() + duration if duration else None
+
+        expire_text = f"\n⏳ Действует до {gift_expire.strftime('%d.%m %H:%M')}" if gift_expire else ""
+        bot.reply_to(message, f"✅ Подарки установлены: {gifts}{expire_text}")
+
+    except Exception as e:
+        bot.reply_to(message, f"❌ Ошибка: {e}")
+
+
+# 👑 Проверка текущих подарков (только для админа)
+@bot.message_handler(commands=['gift_info'])
+def gift_info_command(message):
+    global current_gifts, gift_claims, gift_expire
+
+    if message.from_user.id != ADMIN_ID:
+        return
+
+    if not current_gifts:
+        bot.reply_to(message, "❌ Подарки не установлены!")
+        return
+
+    gift_list = []
+    type_names = {
+        'coins': 'монет', 'euro': 'евро', 'shield': 'защит',
+        'fake_docs': 'документов', 'hanging_shield': 'защит от повешения',
+        'vip': 'дней VIP', 'gun': 'пистолетов'
+    }
+
+    for gift_type, amount in current_gifts.items():
+        gift_list.append(f"{amount} {type_names[gift_type]}")
+
+    expire_text = f"\n⏳ Действует до {gift_expire.strftime('%d.%m %H:%M')}" if gift_expire else ""
+    bot.reply_to(message, f"🎁 Текущие подарки:\n{', '.join(gift_list)}\n\nПолучили уже: {len(gift_claims)} игроков{expire_text}")
+
 
 def _start_game(chat_id):
     global notification_timers
@@ -1553,15 +1761,23 @@ def check_game_end(chat, game_start_time):
             except Exception:
                 pass
 
-    if current_ad_message:
+    # Определяем язык чата и выбираем соответствующую рекламу
+    lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
+    current_ad = current_ad_message_ru if lang == 'ru' else current_ad_message_kz
+
+    if current_ad:
         try:
-            if current_ad_message['is_forward']:
-                bot.forward_message(chat.chat_id, current_ad_message['chat_id'], current_ad_message['message_id'])
+            if current_ad['is_forward']:
+                bot.forward_message(chat.chat_id, current_ad['chat_id'], current_ad['message_id'])
             else:
-                source_msg = bot.copy_message(chat.chat_id, current_ad_message['chat_id'], current_ad_message['message_id'])
-                if original_msg := bot.get_message(current_ad_message['chat_id'], current_ad_message['message_id']):
-                    if original_msg.reply_markup:
-                        bot.edit_message_reply_markup(chat.chat_id, source_msg.message_id, reply_markup=original_msg.reply_markup)
+                # Копируем сообщение с сохранением разметки
+                original_msg = bot.get_message(current_ad['chat_id'], current_ad['message_id'])
+                source_msg = bot.copy_message(
+                    chat.chat_id, 
+                    current_ad['chat_id'], 
+                    current_ad['message_id'],
+                    reply_markup=original_msg.reply_markup if original_msg.reply_markup else None
+                )
         except Exception as e:
             logging.error(f"Ошибка при отправке рекламы: {e}")
 
@@ -1622,10 +1838,14 @@ def check_game_end(chat, game_start_time):
     reset_roles(chat)
     return True
 
+# Глобальные переменные для рекламы (добавьте в начало файла)
+current_ad_message_ru = None
+current_ad_message_kz = None
+
 # Добавляем новую команду для управления рекламой
 @bot.message_handler(commands=['реклама'])
 def handle_ad_command(message):
-    global current_ad_message
+    global current_ad_message_ru, current_ad_message_kz
     
     # Проверяем права администратора
     if message.from_user.id != ADMIN_ID:
@@ -1637,20 +1857,32 @@ def handle_ad_command(message):
     
     # Проверяем формат команды
     if len(message.text.split()) < 2:
-        send_message(message.chat.id, "Использование: /реклама [ссылка на сообщение] или /реклама сброс")
+        send_message(message.chat.id, "Использование: /реклама [ссылка на сообщение] [язык] или /реклама сброс [язык]")
         return
     
-    arg = message.text.split()[1]
+    args = message.text.split()
     
-    if arg.lower() == 'сброс':
-        current_ad_message = None
-        send_message(message.chat.id, "✅ Реклама сброшена")
+    if args[1].lower() == 'сброс':
+        lang = args[2].lower() if len(args) > 2 else None
+        if lang == 'ru':
+            current_ad_message_ru = None
+            send_message(message.chat.id, "✅ Реклама для русских сброшена")
+        elif lang == 'kz':
+            current_ad_message_kz = None
+            send_message(message.chat.id, "✅ Реклама для казахских сброшена")
+        else:
+            current_ad_message_ru = None
+            current_ad_message_kz = None
+            send_message(message.chat.id, "✅ Вся реклама сброшена")
         return
+    
+    # Определяем язык
+    lang = args[2].lower() if len(args) > 2 else 'all'
     
     # Пытаемся извлечь ID сообщения из ссылки
     try:
         # Формат ссылки: https://t.me/c/123456789/123 или https://t.me/CityMafiaAdvertising/123
-        parts = arg.split('/')
+        parts = args[1].split('/')
         message_id = int(parts[-1])
         channel_id_part = parts[-2]
 
@@ -1665,42 +1897,70 @@ def handle_ad_command(message):
         # Получаем сообщение из канала
         ad_message = bot.forward_message(ADMIN_ID, channel_id, message_id)
         
-        # Сохраняем информацию о рекламе
-        current_ad_message = {
+        # Сохраняем временную информацию о рекламе
+        temp_ad_data = {
             'chat_id': channel_id,
-            'message_id': message_id,
-            'is_forward': False  # По умолчанию - копирование
+            'message_id': message_id
         }
         
-        # Предпросмотр и выбор режима
+        # Создаем клавиатуру в зависимости от выбора языка
         markup = types.InlineKeyboardMarkup()
-        markup.add(
-            types.InlineKeyboardButton("✅ Использовать как есть", callback_data="ad_use_copy"),
-            types.InlineKeyboardButton("🔄 Пересылать", callback_data="ad_use_forward")
-        )
+        if lang == 'all':
+            markup.add(
+                types.InlineKeyboardButton("🇷🇺 Для русских", callback_data=f"ad_ru_copy_{message_id}"),
+                types.InlineKeyboardButton("🇰🇿 Для казахских", callback_data=f"ad_kz_copy_{message_id}")
+            )
+        else:
+            markup.add(
+                types.InlineKeyboardButton("✅ Использовать как есть", callback_data=f"ad_{lang}_copy_{message_id}"),
+                types.InlineKeyboardButton("🔄 Пересылать", callback_data=f"ad_{lang}_forward_{message_id}")
+            )
         markup.add(types.InlineKeyboardButton("❌ Отменить", callback_data="ad_cancel"))
         
-        send_message(message.chat.id, "Выберите режим отправки рекламы:", reply_markup=markup)
+        lang_text = "для всех языков" if lang == 'all' else f"для {'русских' if lang == 'ru' else 'казахских'}"
+        send_message(message.chat.id, f"Выберите режим отправки рекламы {lang_text}:", reply_markup=markup)
         
     except Exception as e:
         send_message(message.chat.id, f"Ошибка: {e}\nПроверьте ссылку и права бота в канале.")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('ad_'))
 def handle_ad_callback(call):
-    global current_ad_message
+    global current_ad_message_ru, current_ad_message_kz
     
     if call.data == 'ad_cancel':
-        current_ad_message = None
         bot.edit_message_text("Рекламное сообщение отменено", call.message.chat.id, call.message.message_id)
+        return
     
-    elif call.data == 'ad_use_copy':
-        current_ad_message['is_forward'] = False
-        bot.edit_message_text("✅ Реклама сохранена (будет скопирована)", call.message.chat.id, call.message.message_id)
-    
-    elif call.data == 'ad_use_forward':
-        current_ad_message['is_forward'] = True
-        bot.edit_message_text("✅ Реклама сохранена (будет переслана)", call.message.chat.id, call.message.message_id)
-
+    try:
+        # Парсим callback data: ad_ru_copy_123 или ad_kz_forward_456
+        parts = call.data.split('_')
+        lang = parts[1]  # ru или kz
+        mode = parts[2]  # copy или forward
+        message_id = int(parts[3]) if len(parts) > 3 else None
+        
+        # Получаем информацию о сообщении из пересланного сообщения
+        if call.message.reply_to_message and call.message.reply_to_message.forward_from_chat:
+            chat_id = call.message.reply_to_message.forward_from_chat.id
+            message_id = call.message.reply_to_message.forward_from_message_id
+        else:
+            # Если нет пересланного сообщения, используем данные из callback
+            chat_id = call.message.chat.id
+        
+        ad_data = {
+            'chat_id': chat_id,
+            'message_id': message_id,
+            'is_forward': (mode == 'forward')
+        }
+        
+        if lang == 'ru':
+            current_ad_message_ru = ad_data
+            bot.edit_message_text(f"✅ Реклама для русских сохранена ({'пересылается' if mode == 'forward' else 'копируется'})", call.message.chat.id, call.message.message_id)
+        elif lang == 'kz':
+            current_ad_message_kz = ad_data
+            bot.edit_message_text(f"✅ Реклама для казахских сохранена ({'пересылается' if mode == 'forward' else 'копируется'})", call.message.chat.id, call.message.message_id)
+            
+    except Exception as e:
+        bot.edit_message_text(f"Ошибка: {e}", call.message.chat.id, call.message.message_id)
 
 def reset_game(chat):
     chat.players.clear()  # Очищаем список игроков
