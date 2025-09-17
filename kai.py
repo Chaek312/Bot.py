@@ -2912,12 +2912,12 @@ def join_chat_callback(call):
     chat_list_text = {
         'kz': {
             'title': '*Чат тізімі*',
-            'city_mafia': 'City Mafia Kazakhstan 🇰🇿',
+            'city_mafia': 'ТУРАН 312',
             'golden_mafia': 'Golden Mafia KZ 🇰🇿'
         },
         'ru': {
             'title': '*Список чатов*',
-            'city_mafia': 'City Mafia Kazakhstan 🇰🇿',
+            'city_mafia': 'ТУРАН 312',
             'golden_mafia': 'Golden Mafia KZ 🇰🇿'
         }
     }
@@ -2926,7 +2926,7 @@ def join_chat_callback(call):
     bot.answer_callback_query(call.id, "Чатты таңдаңыз" if lang == 'kz' else "Выберите чат")
     
     keyboard = types.InlineKeyboardMarkup()
-    btn1 = types.InlineKeyboardButton(content['city_mafia'], url='https://t.me/CityMafiaKZ')
+    btn1 = types.InlineKeyboardButton(content['city_mafia'], url='https://t.me/MafiosoKG')
     btn2 = types.InlineKeyboardButton(content['golden_mafia'], url='https://t.me/GMafiaKZ')
     keyboard.add(btn1)
     keyboard.add(btn2)
