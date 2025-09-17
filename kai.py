@@ -174,9 +174,6 @@ def handle_gift_command(message):
     global current_gifts, gift_claims, gift_expire
 
     if message.chat.type != 'private':
-        try:
-        except:
-            pass
         return
 
     user_id = message.from_user.id
