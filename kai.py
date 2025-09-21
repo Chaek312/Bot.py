@@ -27,7 +27,7 @@ notification_timers = {}
 
 logging.basicConfig(level=logging.INFO)
 
-bot = telebot.TeleBot("7605504614:AAG5jdSx_Mod9xeiw8LG9sPQf2D10eu5PzQ")
+bot = telebot.TeleBot("7605504614:AAFSvZfAwOhNn3ZPwaBzw0h_aRbtCZCfcVk")
 PAYMENT_PROVIDER_TOKEN = '5775769170:LIVE:TG_nf2yxA3F_086xA76SyiLao4A'  # Никому не показывать!
 
 # Словарь со всеми чатами и игроками в этих чатах
