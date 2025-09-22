@@ -4858,7 +4858,6 @@ def callback_decision(call):
 
     thread = threading.Thread(target=send_broadcast, args=(chat_id,))
     thread.start()
-
 def control_buttons():
     markup = types.InlineKeyboardMarkup()
     markup.row(
@@ -5136,7 +5135,7 @@ def give_items(message):
         if target_user_id not in player_profiles:
             try:
                 user_info = bot.get_chat(target_user_id)
-                username = f"{user_info.first_name} {user_info.last_name}".strip()  # Добавляем фамилию, если есть
+                username = f"{user_info.first_name} {user_info.last_name}".strip()
             except Exception:
                 username = "Неизвестный"
 
@@ -5160,8 +5159,17 @@ def give_items(message):
                 return
 
             if item_type in player_profiles[target_user_id]:
-                player_profiles[target_user_id][item_type] += amount
-                response.append(f"✅ {item_type.capitalize()}: {amount}")
+                new_value = player_profiles[target_user_id][item_type] + amount
+
+                # Запрещаем уходить в минус
+                if new_value < 0:
+                    response.append(f"⚠️ {item_type.capitalize()}: невозможно отнять {abs(amount)}, у игрока только {player_profiles[target_user_id][item_type]}")
+                else:
+                    player_profiles[target_user_id][item_type] = new_value
+                    if amount >= 0:
+                        response.append(f"✅ Добавлено {amount} к {item_type.capitalize()}")
+                    else:
+                        response.append(f"✅ Отнято {abs(amount)} от {item_type.capitalize()}")
             else:
                 response.append(f"❌ Неправильный тип предмета: {item_type}")
 
