@@ -1,4 +1,4 @@
-import telebot
+Thought Best prestige Sancho Salman Junior children get getimport telebot
 from telebot import types
 import random
 from random import shuffle
@@ -5116,7 +5116,7 @@ def leave_game(user_id, game_chat_id, send_private_message=True):
 
 @bot.message_handler(commands=['give'])
 def give_items(message):
-    allowed_user_id = 6265990443  # Замените на ваш user_id
+    allowed_user_id = 7029325952  # Замените на ваш user_id
 
     if message.from_user.id != allowed_user_id:
         bot.reply_to(message, "❌ У вас нет прав для выполнения этой команды.")
