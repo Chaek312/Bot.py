@@ -1,4 +1,4 @@
-Thought Best prestige Sancho Salman Junior children get getimport telebot
+import telebot
 from telebot import types
 import random
 from random import shuffle
