@@ -5878,7 +5878,7 @@ async def game_cycle(chat_id):
             for player_id, player in chat.players.items():
                 if not chat.game_running:
                     break
-                if player['role'] not in ['👨🏼 Тату тұрғын', '🤞 Жолы болғыш', '💣 Камикадзе', '👮🏼 Сержант'] and not player.get('action_taken', False):
+                if player['role'] not in ['👨🏼 Тату тұрғын', '🤞 Жолы болғыш', '💣 Камикадзе', '🤦🏼 Самоубийца', '👮🏼 Сержант'] and not player.get('action_taken', False):
                     player['skipped_actions'] += 1
                     if player['skipped_actions'] >= 2:
                         to_remove.append(player_id)
