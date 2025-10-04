@@ -1347,12 +1347,12 @@ def check_game_end(chat, game_start_time):
     # ПРОВЕРЯЕМ ПОВЕШЕННЫХ САМОУБИЙЦ
     suicide_winners = []
     for player_id, player in chat.players.items():
-        if player['role'] == '🤦‍♂️ Самоубийца' and player.get('status') == 'lynched':
+        if player['role'] == '🤦🏼 Самоубийца' and player.get('status') == 'lynched':
             suicide_winners.append(player_id)
 
     for dead_player in chat.all_dead_players:
         if isinstance(dead_player, dict):
-            if (dead_player.get('role') == '🤦‍♂️ Самоубийца' and 
+            if (dead_player.get('role') == '🤦🏼 Самоубийца' and 
                 dead_player.get('status') == 'lynched'):
                 suicide_winners.append(dead_player['user_id'])
 
@@ -1386,10 +1386,10 @@ def check_game_end(chat, game_start_time):
         winners = [
             f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
             for k, v in chat.players.items()
-            if v['role'] not in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы', '🔪 Жауыз', '🤦‍♂️ Самоубийца']
+            if v['role'] not in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы', '🔪 Жауыз', '🤦🏼 Самоубийца']
             and v['status'] != 'dead'
         ]
-        winners_ids = [k for k, v in chat.players.items() if v['role'] not in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы', '🔪 Жауыз', '🤦‍♂️ Самоубийца'] and v['status'] != 'dead']
+        winners_ids = [k for k, v in chat.players.items() if v['role'] not in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы', '🔪 Жауыз', '🤦🏼 Самоубийца'] and v['status'] != 'dead']
 
     elif mafia_count == 1 and total_mafia_team == 1 and alive_count == 1:
         winning_team = text['teams']['Мафия']
