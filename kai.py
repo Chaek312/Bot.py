@@ -1312,7 +1312,7 @@ def check_game_end(chat, game_start_time):
             'time': "Ойын уақыты: {} мин. {} сек.",
             'you_earned': "*Ойын аяқталды!*\nСен {} 💶 алдың",
             'teams': {
-                'Самоубийца': "Суицид",
+                'Самоубийца': "Өз-өзіне қол жұмсаушы",
                 'Жауыз': "Жауыз",
                 'Халық': "Халық",
                 'won': "жеңді",
@@ -1344,19 +1344,21 @@ def check_game_end(chat, game_start_time):
     alive_players = [p for p in chat.players.values() if p['status'] != 'dead']
     alive_count = len(alive_players)
 
-    # ПРОВЕРКА ПОВЕШЕННЫХ САМОУБИЙЦ
+    # ПРОВЕРЯЕМ ПОВЕШЕННЫХ САМОУБИЙЦ
     suicide_winners = []
     for player_id, player in chat.players.items():
-        if player['role'] == '🤦🏼 Самоубийца' and player.get('status') == 'lynched':
+        if player['role'] == '🤦‍♂️ Самоубийца' and player.get('status') == 'lynched':
             suicide_winners.append(player_id)
+
     for dead_player in chat.all_dead_players:
         if isinstance(dead_player, dict):
-            if (dead_player.get('role') == '🤦🏼 Самоубийца' and 
+            if (dead_player.get('role') == '🤦‍♂️ Самоубийца' and 
                 dead_player.get('status') == 'lynched'):
                 suicide_winners.append(dead_player['user_id'])
+
     suicide_winners = list(set(suicide_winners))
 
-    # ОСНОВНАЯ КОМАНДА-ПОБЕДИТЕЛЬ
+    # ОСНОВНОЙ ПОБЕДИТЕЛЬ
     winning_team = ""
     winners = []
     winners_ids = []
@@ -1364,7 +1366,7 @@ def check_game_end(chat, game_start_time):
     if maniac_count == 1 and alive_count == 1:
         winning_team = text['teams']['Жауыз']
         winners = [
-            f"[{get_full_name(v).strip()}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
+            f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
             for k, v in chat.players.items()
             if v['role'] == '🔪 Жауыз' and v['status'] != 'dead'
         ]
@@ -1373,7 +1375,7 @@ def check_game_end(chat, game_start_time):
     elif maniac_count == 1 and len(chat.players) - maniac_count == 1:
         winning_team = text['teams']['Жауыз']
         winners = [
-            f"[{get_full_name(v).strip()}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
+            f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
             for k, v in chat.players.items()
             if v['role'] == '🔪 Жауыз' and v['status'] != 'dead'
         ]
@@ -1382,17 +1384,17 @@ def check_game_end(chat, game_start_time):
     elif mafia_count == 0 and maniac_count == 0:
         winning_team = text['teams']['Халық']
         winners = [
-            f"[{get_full_name(v).strip()}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
+            f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
             for k, v in chat.players.items()
-            if v['role'] not in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы', '🔪 Жауыз']
+            if v['role'] not in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы', '🔪 Жауыз', '🤦‍♂️ Самоубийца']
             and v['status'] != 'dead'
         ]
-        winners_ids = [k for k, v in chat.players.items() if v['role'] not in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы', '🔪 Жауыз'] and v['status'] != 'dead']
+        winners_ids = [k for k, v in chat.players.items() if v['role'] not in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы', '🔪 Жауыз', '🤦‍♂️ Самоубийца'] and v['status'] != 'dead']
 
     elif mafia_count == 1 and total_mafia_team == 1 and alive_count == 1:
         winning_team = text['teams']['Мафия']
         winners = [
-            f"[{get_full_name(v).strip()}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
+            f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
             for k, v in chat.players.items()
             if v['role'] == '🧔🏻‍♂️ Дон' and v['status'] != 'dead'
         ]
@@ -1401,7 +1403,7 @@ def check_game_end(chat, game_start_time):
     elif is_mafia_win(alive_count, total_mafia_team):
         winning_team = text['teams']['Мафия']
         winners = [
-            f"[{get_full_name(v).strip()}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
+            f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
             for k, v in chat.players.items()
             if v['role'] in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы']
             and v['status'] != 'dead'
@@ -1411,22 +1413,28 @@ def check_game_end(chat, game_start_time):
     else:
         return False
 
-    # ДОБАВЛЯЕМ САМОУБИЙЦ К ПОБЕДИТЕЛЯМ (БЕЗ «+ Самоубийца» В НАЗВАНИИ КОМАНДЫ)
+    # ДОБАВЛЯЕМ САМОУБИЙЦ (БЕЗ "+ Самоубийца")
     if suicide_winners:
         for suicide_id in suicide_winners:
             if suicide_id not in winners_ids:
                 winners_ids.append(suicide_id)
-                player_info = chat.players.get(suicide_id)
-                if not player_info:
+                player_info = None
+                if suicide_id in chat.players:
+                    player_info = chat.players[suicide_id]
+                else:
                     for dead_player in chat.all_dead_players:
                         if isinstance(dead_player, dict) and dead_player.get('user_id') == suicide_id:
                             player_info = dead_player
                             break
+
                 if player_info:
                     full_name = f"{player_info['name']} {player_info.get('last_name', '')}".strip()
                     winners.append(f"[{full_name}](tg://user?id={suicide_id}) - {translate_role(player_info['role'], lang)}")
 
-    # ВЫДАЧА НАГРАД
+        if not winning_team:
+            winning_team = text['teams']['Самоубийца']
+
+    # ВЫДАЧА НАГРАД ВСЕМ ПОБЕДИТЕЛЯМ
     for player_id in winners_ids:
         reward = 20 if is_user_subscribed(player_id, '@CityMafiaNews') else 10
         if player_profiles.get(player_id, {}).get('vip_until'):
@@ -1437,20 +1445,21 @@ def check_game_end(chat, game_start_time):
         except Exception:
             pass
 
+    # СОЗДАЕМ СПИСКИ ОСТАВШИХСЯ ИГРОКОВ
     remaining_players = []
     for k, v in chat.players.items():
         if k not in winners_ids and v['status'] not in ['dead', 'left']:
-            remaining_players.append(f"[{get_full_name(v).strip()}](tg://user?id={k}) - {translate_role(v['role'], lang)}")
+            remaining_players.append(f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}")
     for k, v in chat.players.items():
         if v['status'] == 'left':
-            remaining_players.append(f"[{get_full_name(v).strip()}](tg://user?id={k}) - {translate_role(v['role'], lang)}")
+            remaining_players.append(f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}")
 
     all_dead_players = []
     for player in chat.all_dead_players:
         if isinstance(player, dict):
             player_id = player['user_id']
             if player_id not in winners_ids:
-                all_dead_players.append(f"[{get_full_name(player).strip()}](tg://user?id={player_id}) - {translate_role(player['role'], lang)}")
+                all_dead_players.append(f"[{get_full_name(player)}](tg://user?id={player_id}) - {translate_role(player['role'], lang)}")
         else:
             import re
             match = re.search(r'tg://user\?id=(\d+)', player)
@@ -1459,6 +1468,7 @@ def check_game_end(chat, game_start_time):
                 if player_id not in winners_ids:
                     all_dead_players.append(player)
 
+    # НАГРАДЫ ДЛЯ ОСТАВШИХСЯ
     for player_id in chat.players:
         if player_id not in winners_ids and chat.players[player_id]['status'] != 'left':
             reward = 0
@@ -1470,6 +1480,7 @@ def check_game_end(chat, game_start_time):
             except Exception:
                 pass
 
+    # РЕКЛАМА
     if current_ad_message:
         try:
             if current_ad_message['is_forward']:
@@ -1484,6 +1495,7 @@ def check_game_end(chat, game_start_time):
 
     time.sleep(5)
 
+    # ФИНАЛЬНОЕ СООБЩЕНИЕ
     game_duration = time.time() - game_start_time
     minutes = int(game_duration // 60)
     seconds = int(game_duration % 60)
@@ -1501,6 +1513,7 @@ def check_game_end(chat, game_start_time):
     except Exception:
         pass
 
+    # НАГРАДЫ ДЛЯ МЁРТВЫХ (не победителей)
     for dead_player in chat.all_dead_players:
         if isinstance(dead_player, dict):
             player_id = dead_player['user_id']
@@ -1521,13 +1534,12 @@ def check_game_end(chat, game_start_time):
             except Exception:
                 pass
 
+    # ОБНОВЛЕНИЕ РЕЙТИНГА
     for player_id in winners_ids:
         player_scores[player_id] = player_scores.get(player_id, 0) + 1
-
     for player_id in chat.players:
         if player_id not in winners_ids and chat.players[player_id]['status'] not in ['left', 'dead']:
             player_scores[player_id] = player_scores.get(player_id, 0) - 1
-
     for dead_player in chat.all_dead_players:
         if isinstance(dead_player, dict):
             player_id = dead_player['user_id']
@@ -1541,6 +1553,7 @@ def check_game_end(chat, game_start_time):
         if player_id not in winners_ids:
             player_scores[player_id] = player_scores.get(player_id, 0) - 1
 
+    # ОЧИСТКА РЕГИСТРАЦИИ
     for player_id in list(user_game_registration.keys()):
         if user_game_registration[player_id] == chat.chat_id:
             del user_game_registration[player_id]
