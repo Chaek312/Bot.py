@@ -63,6 +63,11 @@ message_times = []
 message_limit = 35  # Лимит на 30 сообщений в секунду
 interval = 1  # Интервал в 1 секунду
 user_data = {}
+# Укажи здесь ID чатов, где нельзя запускать регистрацию
+blocked_chat_ids = [
+    -1002145074948,  # пример ID группы
+    -1002571779811   # добавь свои
+]
 broadcast_status = {
     'is_paused': False,
     'is_stopped': False
@@ -3586,6 +3591,7 @@ def handle_close_settings(call):
     bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
     bot.answer_callback_query(call.id, get_text(chat_id, 'menu_closed'))
 
+
 @bot.message_handler(commands=['game'])
 def create_game(message):
     chat_id = message.chat.id
@@ -3594,6 +3600,14 @@ def create_game(message):
     # Проверяем, что команда вызвана в групповом чате
     if message.chat.type not in ['group', 'supergroup']:
         bot.reply_to(message, "Эту команду можно использовать только в групповом чате.")
+        return
+
+    # 🔒 Проверяем, запрещён ли запуск игры в этом чате
+    if chat_id in blocked_chat_ids:
+        bot.send_message(chat_id,
+                         "🚫 В этом чате запуск игры заблокирован из-за нарушения правил.\n"
+                         "Владельцу чата рекомендуется обратиться в техподдержку.")
+        print(f"Запуск регистрации заблокирован для чата {chat_id}")
         return
 
     # Пытаемся удалить сообщение
