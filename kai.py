@@ -64,8 +64,7 @@ message_limit = 35  # Лимит на 30 сообщений в секунду
 interval = 1  # Интервал в 1 секунду
 user_data = {}
 # Укажи здесь ID чатов, где нельзя запускать регистрацию
-blocked_chat_ids = [
-    -1002145074948,  # пример ID группы
+blocked_chat_ids = [# пример ID группы
     -1002571779811   # добавь свои
 ]
 broadcast_status = {
@@ -2890,13 +2889,13 @@ def join_chat_callback(call):
     chat_list_text = {
         'kz': {
             'title': '*Чат тізімі*',
-            'city_mafia': 'City Mafia Kazakhstan 🇰🇿',
-            'golden_mafia': 'Golden Mafia KZ 🇰🇿'
+            'city_mafia': 'Общий чат (🇷🇺)',
+            'golden_mafia': 'Premium mafia kz🇰🇿 (🇰🇿)'
         },
         'ru': {
             'title': '*Список чатов*',
-            'city_mafia': 'City Mafia Kazakhstan 🇰🇿',
-            'golden_mafia': 'Golden Mafia KZ 🇰🇿'
+            'city_mafia': 'Общий чат (🇷🇺)',
+            'golden_mafia': 'Premium mafia kz🇰🇿 (🇰🇿)'
         }
     }
     content = chat_list_text[lang]
@@ -2904,8 +2903,8 @@ def join_chat_callback(call):
     bot.answer_callback_query(call.id, "Чатты таңдаңыз" if lang == 'kz' else "Выберите чат")
     
     keyboard = types.InlineKeyboardMarkup()
-    btn1 = types.InlineKeyboardButton(content['city_mafia'], url='https://t.me/CityMafiaKZ')
-    btn2 = types.InlineKeyboardButton(content['golden_mafia'], url='https://t.me/+WO8MLze4bZtlOTBi')
+    btn1 = types.InlineKeyboardButton(content['city_mafia'], url='https://t.me/CityMafia3')
+    btn2 = types.InlineKeyboardButton(content['golden_mafia'], url='https://t.me/+KjxCUOckHpphZT')
     keyboard.add(btn1)
     keyboard.add(btn2)
 
