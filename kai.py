@@ -127,8 +127,7 @@ class Game:
         players_list = ", ".join([f"{player['name']} {player.get('last_name', '')}" for player in self.players.values()])
         return players_list
 
-    
-    
+
     def remove_player(chat, player_id, killed_by=None):
         if player_id in chat.players:
             dead_player = chat.players.pop(player_id)
@@ -147,8 +146,13 @@ class Game:
             full_name = f"{dead_player['name']} {dead_player.get('last_name', '')}".strip()
             clickable_name = f"[{full_name}](tg://user?id={player_id})"
 
-        # Добавляем в список мертвых
-            chat.all_dead_players.append(f"{clickable_name} - {role}")
+        # --- ИСПРАВЛЕНИЕ ДЛЯ ПОБЕДЫ САМОУБИЙЦЫ ---
+        # 1. Добавляем ID игрока в словарь
+            dead_player['user_id'] = player_id 
+        # 2. Добавляем ВЕСЬ СЛОВАРЬ игрока в список мертвых. 
+        # Если это Самоубийца, его словарь уже содержит {'status': 'lynched'}.
+            chat.all_dead_players.append(dead_player)
+        # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
             if killed_by == 'night':
                 try:
@@ -160,6 +164,7 @@ class Game:
                     chat.dead_last_words[player_id] = full_name  # Сохраняем полное имя
                 except Exception as e:
                     print(f"Не удалось отправить сообщение игроку {full_name}: {e}")
+
 
 def start_kamikaze_choice(chat, kamikaze_id):
     """Запускает выбор игрока для камикадзе после повешения в ЛИЧНОМ СООБЩЕНИИ"""
