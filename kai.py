@@ -5480,7 +5480,7 @@ def notify_night_start(chat_id, players_alive_text):
     private_message_btn.add(types.InlineKeyboardButton(btn_text, url=private_message_url))
 
     # Отправляем изображение с сообщением о начале ночи
-    bot.send_photo(chat_id, 'https://t.me/ProfileChaekBot/7', caption=night_caption, parse_mode="Markdown", reply_markup=private_message_btn)
+    bot.send_photo(chat_id, 'https://t.me/ProfileChaekBot/29559', caption=night_caption, parse_mode="Markdown", reply_markup=private_message_btn)
 
     time.sleep(1.5)
 
@@ -5926,7 +5926,7 @@ async def game_cycle(chat_id):
 
             bot.send_photo(
                 chat_id,
-                'https://t.me/ProfileChaekBot/8',
+                'https://t.me/ProfileChaekBot/29561',
                 caption=caption,
                 parse_mode="Markdown"
             )
