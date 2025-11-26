@@ -2971,9 +2971,9 @@ def join_chat_callback(call):
     # ❗ Чаты, к которым надо дать кнопку
     #   key = chat_id группы
     chat_targets = [
-        -1003230376452,
-        -1003411473049,
         -1002145074948,
+        -1003411473049,
+        -1003230376452
         # Premium KZ
     ]
 
@@ -7116,12 +7116,13 @@ def skip_vote_handler(call):
         return
 
     lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
+    anon = chat_settings.get(chat.chat_id, {}).get("anonymous_voting", True)
 
     if not chat.is_voting_time:  
-        if lang == 'kz':
-            bot.answer_callback_query(call.id, text="Дауыс беру қазір мүмкін емес.")
-        if lang == 'ru':
-            bot.answer_callback_query(call.id, text="Голосование сейчас недоступно.")
+        bot.answer_callback_query(
+            call.id,
+            "Дауыс беру қазір мүмкін емес." if lang == 'kz' else "Голосование сейчас недоступно."
+        )
         return
 
     if 'vote_counts' not in chat.__dict__:
@@ -7131,28 +7132,48 @@ def skip_vote_handler(call):
 
     # Блокировка от Көңілдес
     if player.get('voting_blocked', False) and not player.get('healed_from_lover', False):
-        if lang == 'kz':
-            bot.answer_callback_query(call.id, text="💃🏼 Көңілдес «Маған кел, бәрін ұмыт...» – деп ән салды")
-        if lang == 'ru':
-            bot.answer_callback_query(call.id, text="💃🏼 Любовница поёт: «Иди ко мне, забудь всё...»")
+        bot.answer_callback_query(
+            call.id,
+            "💃🏼 Көңілдес «Маған кел, бәрін ұмыт...» – деп ән салды" if lang == 'kz'
+            else "💃🏼 Любовница поёт: «Иди ко мне, забудь всё...»"
+        )
         return
 
     if not player.get('has_voted', False):
         chat.vote_counts['skip'] = chat.vote_counts.get('skip', 0) + 1
         player['has_voted'] = True
 
-        if lang == 'kz':
-            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="🚷 Сіз дауыс беруді өткізіп жіберуді шештіңіз")
-        if lang == 'ru':
-            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="🚷 Вы решили пропустить голосование")
+        # Сообщение игроку
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text=(
+                "🚷 Сіз дауыс беруді өткізіп жіберуді шештіңіз" if lang == 'kz'
+                else "🚷 Вы решили пропустить голосование"
+            )
+        )
 
+        # Формируем имена
         full_name = get_full_name(player)
         voter_link = f"[{full_name}](tg://user?id={from_id})"
 
-        if lang == 'kz':
-            send_message(chat_id, f"🚷 {voter_link} ешкімді аспауды ұсынады", parse_mode="Markdown")
-        if lang == 'ru':
-            send_message(chat_id, f"🚷 {voter_link} предлагает никого не вешать", parse_mode="Markdown")
+        # --- ТОЧНО КАК В ОБЫЧНОМ "АНОНИМНОМ" ГОЛОСОВАНИИ ---
+        if anon:
+            # КАК У ТЕБЯ В VOTE:
+            # "Ник дауыс берді" / "Ник проголосовал"
+            if lang == 'kz':
+                text = f"{voter_link} дауыс берді"
+            else:
+                text = f"{voter_link} проголосовал"
+        else:
+            # Неанонимный вариант (видно что пропуск)
+            if lang == 'kz':
+                text = f"🚷 {voter_link} ешкімді аспауды ұсынады"
+            else:
+                text = f"🚷 {voter_link} предлогает пропустить голосование"
+
+        send_message(chat_id, text, parse_mode="Markdown")
+
 
 
 @bot.callback_query_handler(func=lambda call: True)
