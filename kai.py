@@ -145,7 +145,7 @@ class Game:
                 del user_game_registration[player_id]
 
         # Получаем язык чата
-            lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
+            lang = chat_settings.get(chat.chat_id, {}).get("language", "ru")
 
         # Переводим роль
             role = translate_role(dead_player['role'], lang)
@@ -161,12 +161,17 @@ class Game:
                 try:
                     death_messages = {
                         'ru': "*Тебя убили ночью :(*\nТы можешь отправить своё последнее сообщение",
+                        'uz': "*Sizni o'ldirishdi :(*\nSiz bu yerdan o'lim oldi xabar qoldirishingiz mumkin",
+                        'id': "*Kamu terbunuh pada malam hari :(*\Kamu bisa mengirim pesan terakhirmu",
                         'kz': "*Сенi өлтірді :(*\nӨлім туралы хабарламаңды жібере аласың"
                     }
                     send_message(player_id, death_messages[lang], parse_mode='Markdown')
                     chat.dead_last_words[player_id] = full_name  # Сохраняем полное имя
                 except Exception as e:
                     print(f"Не удалось отправить сообщение игроку {full_name}: {e}")
+
+
+
 
 def start_kamikaze_choice(chat, kamikaze_id):
     """Запускает выбор игрока для камикадзе после повешения в ЛИЧНОМ СООБЩЕНИИ"""
@@ -197,6 +202,10 @@ def start_kamikaze_choice(chat, kamikaze_id):
     # Текст вопроса
     if lang == 'kz':
         message_text = "Кімді өзіңмен бірге аласың?"
+    elif lang == 'uz':
+        message_text = "O‘zing bilan kimni olib ketasan?"
+    elif lang == 'id':
+        message_text = "Siapa yang akan kamu bawa bersamamu?"
     else:
         message_text = "Кого заберешь с собой в могилу?"
     
@@ -224,6 +233,10 @@ def handle_kamikaze_choice(chat, kamikaze_id, chosen_player_id):
     if not chosen_player or chosen_player['role'] == 'dead':
         if lang == 'kz':
             send_message(kamikaze_id, "❌ Бұл ойыншы қазірдің өзінде өлі...")
+        elif lang == 'uz':
+            send_message(kamikaze_id, "❌ Bu o‘yinchi allaqachon o‘lik...")
+        elif lang == 'id':
+            send_message(kamikaze_id, "❌ Pemain ini sudah mati...")
         else:
             send_message(kamikaze_id, "❌ Этот игрок уже мертв...")
         return
@@ -236,6 +249,10 @@ def handle_kamikaze_choice(chat, kamikaze_id, chosen_player_id):
         try:
             if lang == 'kz':
                 new_text = "✅ Сен таңдауыңды жасадың!"
+            elif lang == 'uz':
+                new_text = "✅ Siz tanlovingizni qildingiz!"
+            elif lang == 'id':
+                new_text = "✅ Kamu sudah memilih!"
             else:
                 new_text = "✅ Ты выбрал!"
             
@@ -250,6 +267,10 @@ def handle_kamikaze_choice(chat, kamikaze_id, chosen_player_id):
     # В общий чат (только факт, без имени)
     if lang == 'kz':
         announcement = "💣 *Камикадзе* өзімен бірге біреуді алуды шешті..."
+    elif lang == 'uz':
+        announcement = "💣 *Kamikadze* o‘zi bilan bir odamni olib ketishga qaror qildi..."
+    elif lang == 'id':
+        announcement = "💣 *Kamikaze* memutuskan membawa seseorang bersamanya..."
     else:
         announcement = "💣 *Камикадзе* решил забрать кого-то с собой..."
     
@@ -275,6 +296,10 @@ def end_kamikaze_choice(chat, kamikaze_id):
         try:
             if lang == 'kz':
                 new_text = "⏰ Уақытың бітіп қалды, сен ешкімді таңдамадың."
+            elif lang == 'uz':
+                new_text = "⏰ Vaqtingiz tugadi, siz hech kimni tanlamadingiz."
+            elif lang == 'id':
+                new_text = "⏰ Waktu habis, kamu tidak memilih siapa pun."
             else:
                 new_text = "⏰ Время вышло, ты никого не выбрал."
             
@@ -306,6 +331,10 @@ def _start_game(chat_id):
             send_message(chat_id, 'Алдымен /game пәрменін пайдаланып ойын жасаңыз.')
         if lang == "ru":
             send_message(chat_id, 'Сначала создайте игру с помощью команды /game')
+        if lang == "uz":
+            send_message(chat_id, 'Avval /game buyrug‘i orqali o‘yin yarating.')
+        if lang == "id":
+            send_message(chat_id, 'Buat permainan terlebih dahulu dengan perintah /game')
         return
 
     chat = chat_list[chat_id]
@@ -315,11 +344,16 @@ def _start_game(chat_id):
         return
 
     # Проверка минимального количества игроков
+
     if len(chat.players) < 4:
         if lang == "kz":
             send_message(chat_id, '*Ойынды бастау үшін адам жеткіліксіз...*', parse_mode="Markdown")
         if lang == "ru":
             send_message(chat_id, '*Недостаточно игроков для начала игры...*', parse_mode="Markdown")
+        if lang == "uz":
+            send_message(chat_id, '*O‘yin boshlanishi uchun yetarli o‘yinchi yo‘q...*', parse_mode="Markdown")
+        if lang == "id":
+            send_message(chat_id, '*Tidak cukup pemain untuk memulai permainan...*', parse_mode="Markdown")
         reset_registration(chat_id)
         return
 
@@ -351,6 +385,10 @@ def _start_game(chat_id):
         send_message(chat_id, '*Ойын басталды!*', parse_mode="Markdown")
     if lang == "ru":
         send_message(chat_id, '*Игра начинается!*', parse_mode="Markdown")
+    if lang == "uz":
+        send_message(chat_id, '*O‘yin boshlandi!*', parse_mode="Markdown")
+    if lang == "id":
+        send_message(chat_id, '*Permainan dimulai!*', parse_mode="Markdown")
 
     # Распределение ролей
     players_list = list(chat.players.items())
@@ -463,64 +501,91 @@ def change_role(player_id, player_dict, new_role, text, game):
     chat_id = game.chat_id  # ИЛИ другой способ получения chat_id, в зависимости от структуры вашего класса Game
     
     # Получаем язык из настроек чата
-    lang = chat_settings.get(chat_id, {}).get("language", "kz")
+    lang = chat_settings.get(chat_id, {}).get("language", "ru")
     
     # Получаем язык из настроек чата
     # Тексты для всех ролей
     role_texts = {
         '🤵🏻‍♂️ Дон': {
             "kz": "Сен - 🤵🏻‍♂️ Донсың!\n\n(Мафияның басшысы!)Бұл түні кімнің мәңгі ұйқыға кететінін шешесің...",
-            "ru": "Вы - 🤵🏻‍♂️ Дон!\n\nГлава мафии! Вы решаете, кто отправится в вечный сон этой ночью..."
+            "ru": "Вы - 🤵🏻‍♂️ Дон!\n\nГлава мафии! Вы решаете, кто отправится в вечный сон этой ночью...",
+            "uz": "Siz — 🤵🏻‍♂️ Don!\n\nMafiya boshlig‘i! Bu kecha kim abadiy uyquga ketishini siz hal qilasiz...",
+            "id": "Kamu adalah 🤵🏻‍♂️ Don!\n\nBos mafia! Kamu memutuskan siapa yang akan tertidur selamanya malam ini..."
         },
         '🤵🏻 Мафия': {
             "kz": "Сіз — 🤵🏻 Мафия!\n\nМіндетіңіз - Донға бағыну және сізге қарсы шыққандарды өлтіру. Бір күні сіз де Дон болуыңыз мүмкін...",
-            "ru": "Вы — 🤵🏻 Мафия!\n\nВаша задача - подчиняться Дону и устранять противников. Однажды вы тоже можете стать Доном..."
+            "ru": "Вы — 🤵🏻 Мафия!\n\nВаша задача - подчиняться Дону и устранять противников. Однажды вы тоже можете стать Доном...",
+            "uz": "Siz — 🤵🏻 Mafiya!\n\nVazifangiz — Donga bo‘ysunish va qarshilarga yo‘q qilish. Bir kun siz ham Don bo‘lishingiz mumkin...",
+            "id": "Kamu — 🤵🏻 Mafia!\n\nTugasmu adalah mengikuti Don dan menghabisi lawan. Suatu hari kamu juga bisa menjadi Don..."
         },
         '👨🏼‍⚕️ Дәрігер': {
             "kz": "Сіз — 👨🏼‍⚕️ Дәрігер!\n\nТүнде кімді құтқаратыныңызды сіз шешесіз…",
-            "ru": "Вы — 👨🏼‍⚕️ Доктор!\n\nВы решаете, кого спасти этой ночью…"
+            "ru": "Вы — 👨🏼‍⚕️ Доктор!\n\nВы решаете, кого спасти этой ночью…",
+            "uz": "Siz — 👨🏼‍⚕️ Shifokor!\n\nBu kecha kimni qutqarishni o‘zingiz tanlaysiz…",
+            "id": "Kamu — 👨🏼‍⚕️ Dokter!\n\nKamu memutuskan siapa yang akan kamu selamatkan malam ini…"
         },
         '🤦🏼 Самоубийца': {
             "kz": "Сіз — 🤦🏼 Суицид!\n\nСіздің міндетіңіз - қалалық жиналыста дарға асылу!",
-            "ru": "Вы — 🤦🏼 Самоубийца!\n\nВаша задача - быть повешенным на городском собрании!"
+            "ru": "Вы — 🤦🏼 Самоубийца!\n\nВаша задача - быть повешенным на городском собрании!",
+            "uz": "Siz — 🤦🏼 O‘z joniga qasd qiluvchi!\n\nVazifangiz — shaharlik yig‘ilishda o‘zingizni osdirish!",
+            "id": "Kamu — 🤦🏼 Bunuh diri!\n\nTugasmu — digantung di pertemuan kota!"
         },
         '🧙‍♂️ Қаңғыбас': {
             "kz": "Сіз — 🧙‍♂️ Қаңғыбас!\n\nКез келген адамға бір шыны үшін жолығып, кісі өлтіру куәгері бола аласыз.",
-            "ru": "Вы — 🧙‍♂️ Бомж!\n\nМожете стать свидетелем убийства, встретив любого человека за бутылку."
+            "ru": "Вы — 🧙‍♂️ Бомж!\n\nМожете стать свидетелем убийства, встретив любого человека за бутылку.",
+            "uz": "Siz — 🧙‍♂️ Qanqimas!\n\nBir stakan evaziga istalgan odamni uchrab, qotillik guvohiga aylanishingiz mumkin.",
+            "id": "Kamu — 🧙‍♂️ Gelandangan!\n\nUntuk sebotol minuman, kamu bisa menjadi saksi pembunuhan siapa pun."
         },
         '🕵🏼 Комиссар': {
             "kz": "Сіз — 🕵🏼 Комиссар!\n\nҚаланың қорғаушысы мен мафияның басты қорқынышы...",
-            "ru": "Вы — 🕵🏼 Комиссар!\n\nЗащитник города и главная угроза для мафии..."
+            "ru": "Вы — 🕵🏼 Комиссар!\n\nЗащитник города и главная угроза для мафии...",
+            "uz": "Siz — 🕵🏼 Komissar!\n\nShahar himoyachisi va mafiya uchun eng katta tahdid...",
+            "id": "Kamu — 🕵🏼 Komisaris!\n\nPelindung kota dan ancaman utama bagi mafia..."
         },
         '🤞 Жолы болғыш': {
             "kz": "Сіз — 🤞 Жолы болғыш!\n\nМіндетіңіз — қалалық жиналыста бұзақыларды дарға асу.",
-            "ru": "Вы — 🤞 Счастливчик!\n\nВаша задача - выявлять преступников на городском собрании."
+            "ru": "Вы — 🤞 Счастливчик!\n\nВаша задача - выявлять преступников на городском собрании.",
+            "uz": "Siz — 🤞 Omadli!\n\nVazifangiz — shahardagi yig‘ilishda jinoyatchilarni aniqlash.",
+            "id": "Kamu — 🤞 Si Beruntung!\n\nTugasmu — mengungkap penjahat dalam pertemuan kota."
         },
         '💣 Камикадзе': {
             "kz": "Сіз — 💣 Камикадзе!\n\nЕгер олар сізді асып тастауға тырысса, ойыншылардың қайсысын өзіңізбен бірге қабірге апаратыныңызды таңдай аласыз.",
-            "ru": "Вы — 💣 Камикадзе!\n\nЕсли вас попытаются повесить, вы можете выбрать, кого взять с собой в могилу."
+            "ru": "Вы — 💣 Камикадзе!\n\nЕсли вас попытаются повесить, вы можете выбрать, кого взять с собой в могилу.",
+            "uz": "Siz — 💣 Kamikadze!\n\nAgar sizni osishga urinishsa, o‘zingiz bilan kimni olib ketishni tanlashingiz mumkin.",
+            "id": "Kamu — 💣 Kamikaze!\n\nJika mereka mencoba menggantungmu, kamu bisa memilih siapa yang akan kamu bawa bersamamu."
         },
         '💃🏼 Көңілдес': {
             "kz": "Сіз — 💃🏼 Көңілдес!\n\nҚалаған ойыншыны бір күнге ұйықтату үшін дағдыларыңызды пайдаланыңыз.",
-            "ru": "Вы — 💃🏼 Любовница!\n\nИспользуйте свои навыки, чтобы усыпить любого игрока на день."
+            "ru": "Вы — 💃🏼 Любовница!\n\nИспользуйте свои навыки, чтобы усыпить любого игрока на день.",
+            "uz": "Siz — 💃🏼 Ma’shuqa!\n\nIstalgan o‘yinchini bir kunga uxlatish uchun mahoratingizdan foydalaning.",
+            "id": "Kamu — 💃🏼 Kekasih!\n\nGunakan kemampuanmu untuk menidurkan pemain mana pun selama satu hari."
         },
         '👨🏼‍💼 Қорғаушы': {
             "kz": "Сіз — 👨🏼‍💼 Қорғаушы!\n\nТүнде кімді қорғайтыныңызды шешесіз.",
-            "ru": "Вы — 👨🏼‍💼 Адвокат!\n\nВы решаете, кого защищать этой ночью."
+            "ru": "Вы — 👨🏼‍💼 Адвокат!\n\nВы решаете, кого защищать этой ночью.",
+            "uz": "Siz — 👨🏼‍💼 Himoyachi!\n\nBu kecha kimni himoya qilishni siz tanlaysiz.",
+            "id": "Kamu — 👨🏼‍💼 Pelindung!\n\nKamu memutuskan siapa yang akan kamu lindungi malam ini."
         },
         '👮🏼 Сержант': {
             "kz": "Сіз — 👮🏼 Сержант!\n\nКомиссардың көмекшісісіз.",
-            "ru": "Вы — 👮🏼 Сержант!\n\nВы помощник Комиссара."
+            "ru": "Вы — 👮🏼 Сержант!\n\nВы помощник Комиссара.",
+            "uz": "Siz — 👮🏼 Serjant!\n\nSiz Komissarning yordamchisisiz.",
+            "id": "Kamu — 👮🏼 Sersan!\n\nKamu adalah asisten Komisaris."
         },
         '🔪 Жауыз': {
             "kz": "Сіз — 🔪 Жауыз!\n\nҚалада ешкім тірі қалмауы керек. Әлбетте, сізден басқасы :)",
-            "ru": "Вы — 🔪 Маньяк!\n\nВ городе не должно остаться никого в живых. Кроме вас, конечно :)"
+            "ru": "Вы — 🔪 Маньяк!\n\nВ городе не должно остаться никого в живых. Кроме вас, конечно :)",
+            "uz": "Siz — 🔪 Manyak!\n\nShaharda hech kim tirik qolmasligi kerak. Albatta, sizdan boshqa :)",
+            "id": "Kamu — 🔪 Maniak!\n\nTidak boleh ada yang hidup di kota. Kecuali kamu, tentu saja :)"
         },
         '👨🏼 Тату тұрғын': {
             "kz": "Сіз — 👨🏼 Тату тұрғын!\n\nСіздің басты міндетіңіз — мафияны тауып, қалалық жиналыста оңбағандарды дарға асу.",
-            "ru": "Вы — 👨🏼 Мирный житель!\n\nВаша главная задача - выявлять мафию и вешать преступников на городском собрании."
+            "ru": "Вы — 👨🏼 Мирный житель!\n\nВаша главная задача - выявлять мафию и вешать преступников на городском собрании.",
+            "uz": "Siz — 👨🏼 Tinch aholi!\n\nAsosiy vazifangiz — mafiya a'zolarini topish va shahardagi yig‘ilishda osdirish.",
+            "id": "Kamu — 👨🏼 Warga damai!\n\nTugas utamamu adalah menemukan mafia dan menggantung penjahat di pertemuan kota."
         }
     }
+
 
     # Если текст не передан, используем стандартный для роли
     if not text and new_role in role_texts:
@@ -610,14 +675,22 @@ def registration_message(players, chat_id):
 
         if lang == 'kz':
             return f"*Ойыншы жинап жатырмыз*\n{player_list}\n_{len(player_names)} адам қосылды_"
-        else:
+        if lang == 'ru':
             return f"*Ведётся набор игроков*\n{player_list}\n_{len(player_names)} человек присоединилось_"
+        if lang == 'uz':
+            return f"*Ro'yxatdan o'tish boshlandi*\n{player_list}\n_Jami {len(player_names)}ta odam._"
+        if lang == 'id':
+            return f"*Perekrutan pemain berlangsung*\n{player_list}\n_{len(player_names)} orang bergabung_"
+
     else:
-        return (
-            "*Ойыншы жинап жатырмыз*\n_Әзірге ешкім жоқ_"
-            if lang == 'kz'
-            else "*Ведётся набор игроков*\n_Зарегистрированных нет_"
-        )
+        if lang == 'kz':
+            return "*Ойыншы жинап жатырмыз*\n_Әзірге ешкім жоқ_"
+        if lang == 'ru':
+            return "*Ведётся набор игроков*\n_Зарегистрированных нет_"
+        if lang == 'uz':
+            return "*Ro'yxatdan o'tish boshlandi*\n_Hozircha hech kim yo‘q_"
+        if lang == 'id':
+            return "*Perekrutan pemain berlangsung*\n_Belum ada yang terdaftar_"
 
 
 # Формирование сообщения с живыми игроками
@@ -659,6 +732,14 @@ def night_message(players, chat_id):
         'ru': {
             'title': "*Живые игроки:*",
             'time_left': f"_До сна осталось {night_time} секунд._"
+        },
+        'uz': {
+            'title': "*Tirik o‘yinchilar:*",
+            'time_left': f"_Uxlashga {night_time} soniya qoldi._"
+        },
+        'id': {
+            'title': "*Pemain yang masih hidup:*",
+            'time_left': f"_Tersisa {night_time} detik sebelum tidur._"
         }
     }
     
@@ -738,6 +819,18 @@ def day_message(players, chat_id):
             'some_of_them': "*Среди них:*",
             'total': "👥 Всего: *{}*",
             'discussion': "Пришло время обсудить события ночи и провести расследование..."
+        },
+        'uz': {
+            'title': "*Tirik o‘yinchilar:*",
+            'some_of_them': "*Ularning ba'zilari:*",
+            'total': "👥 Jami: *{}*",
+            'discussion': "Kecha nima bo‘lganini muhokama qilib, tergov o‘tkazish vaqti keldi..."
+        },
+        'id': {
+            'title': "*Pemain yang masih hidup:*",
+            'some_of_them': "*Beberapa di antaranya:*",
+            'total': "👥 Total: *{}*",
+            'discussion': "Saatnya membahas kejadian malam dan melakukan penyelidikan..."
         }
     }
 
@@ -786,89 +879,6 @@ def is_admin(user_id):
     return user_id == ADMIN_ID
 
 
-def parse_duration(text):
-    match = re.match(r'(\d+)([smhd])', text)
-    if not match:
-        return None
-
-    amount, unit = match.groups()
-    amount = int(amount)
-
-    if unit == 's':
-        return timedelta(seconds=amount)
-    elif unit == 'm':
-        return timedelta(minutes=amount)
-    elif unit == 'h':
-        return timedelta(hours=amount)
-    elif unit == 'd':
-        return timedelta(days=amount)
-    else:
-        return None
-
-# !бан
-@bot.message_handler(func=lambda msg: msg.text and msg.text.lower().startswith('!бан'))
-def ban_user(message):
-    if not is_admin(message.from_user.id):
-        return
-
-    if not message.reply_to_message:
-        bot.reply_to(message, "Ответь на сообщение пользователя, которого хочешь забанить.")
-        return
-
-    args = message.text.split()
-    duration = None
-    until_date = None
-
-    if len(args) > 1:
-        duration = parse_duration(args[1])
-        if duration is None:
-            bot.reply_to(message, "Неверный формат времени. Пример: !бан 30m")
-            return
-        until_date = datetime.now() + duration
-
-    user_to_ban = message.reply_to_message.from_user.id
-    chat_id = message.chat.id
-
-    try:
-        bot.ban_chat_member(chat_id=chat_id, user_id=user_to_ban, until_date=until_date)
-        if until_date:
-            bot.reply_to(message, f"Готово! :)")
-        else:
-            bot.reply_to(message, "Готово! :)")
-    except Exception as e:
-        bot.reply_to(message, f"Ошибка: {e}")
-
-# !молчи и !молчать
-@bot.message_handler(func=lambda msg: msg.text and msg.text.lower().startswith(('!молчи', '!молчать')))
-def mute_user(message):
-    if not is_admin(message.from_user.id):
-        return
-
-    if not message.reply_to_message:
-        bot.reply_to(message, "Ответь на сообщение пользователя, которого хочешь замутить.")
-        return
-
-    args = message.text.split()
-    if len(args) < 2:
-        bot.reply_to(message, "Укажи длительность мута, например: !молчи 15m")
-        return
-
-    duration = parse_duration(args[1])
-    if duration is None:
-        bot.reply_to(message, "Неверный формат времени. Пример: 10m, 1h, 2d")
-        return
-
-    until_date = datetime.now() + duration
-    user_to_mute = message.reply_to_message.from_user.id
-    chat_id = message.chat.id
-    permissions = types.ChatPermissions(can_send_messages=False)
-
-    try:
-        bot.restrict_chat_member(chat_id=chat_id, user_id=user_to_mute,
-                                 permissions=permissions, until_date=until_date)
-        bot.reply_to(message, f"Готово! :)")
-    except Exception as e:
-        bot.reply_to(message, f"Ошибка: {e}")
 
 def send_message(chat_id, message, parse_mode=None, reply_markup=None, protect_content=False):
     global message_times
@@ -913,14 +923,32 @@ def send_message_to_mafia(chat, message):
 
 def notify_mafia(chat, sender_name, sender_last_name, message, sender_id):
     sender_full_name = f"{sender_name} {sender_last_name}"
+    lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")  # получаем язык чата
+
+    # Определяем текст роли по языку
+    if chat.players[sender_id]['role'] == '🤵🏻‍♂️ Дон':
+        if lang == 'kz':
+            role_text = "🤵🏻‍♂️ Дон"
+        elif lang == 'ru':
+            role_text = "🤵🏻‍♂️ Дон"
+        elif lang == 'uz':
+            role_text = "🤵🏻‍♂️ Don"
+        elif lang == 'id':
+            role_text = "🤵🏻‍♂️ Don"
+    else:  # '🤵🏻 Мафия'
+        if lang == 'kz':
+            role_text = "🤵🏻 Мафия"
+        elif lang == 'ru':
+            role_text = "🤵🏻 Мафия"
+        elif lang == 'uz':
+            role_text = "🤵🏻 Mafiya"
+        elif lang == 'id':
+            role_text = "🤵🏻 Mafia"
+
+    prefix = f"{role_text} {sender_full_name}:"
+
     for player_id, player in chat.players.items():
         if player['role'] in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон'] and player_id != sender_id:
-            # Формируем префикс с эмодзи и ролью
-            if chat.players[sender_id]['role'] == '🤵🏻‍♂️ Дон':
-                prefix = f"🤵🏻‍♂️ Дон {sender_full_name}:"
-            else:
-                prefix = f"🤵🏻 Мафия {sender_full_name}:"
-
             try:
                 send_message(
                     player_id, 
@@ -949,6 +977,14 @@ def notify_at_59_seconds(chat_id):
                 "ru": {
                     "join": "🤵🏻 Присоединиться",
                     "msg": "⏰ До конца регистрации осталось *59 сек*"
+                },
+                "uz": {
+                    "join": "🤵🏻 Qo‘shilish",
+                    "msg": "⏰ Ro'yxatdan o'tish tugashiga *59 soniya* qoldi"
+                },
+                "id": {
+                    "join": "🤵🏻 Bergabung",
+                    "msg": "⏰ Pendaftaran tersisa *59 detik*"
                 }
             }
 
@@ -977,6 +1013,14 @@ def notify_at_29_seconds(chat_id):
                 "ru": {
                     "join": "🤵🏻 Присоединиться",
                     "msg": "⏰ До конца регистрации осталось *29 сек*"
+                },
+                "uz": {
+                    "join": "🤵🏻 Qo‘shilish",
+                    "msg": "⏰ Ro'yxatdan o'tish tugashiga *29 soniya* qoldi"
+                },
+                "id": {
+                    "join": "🤵🏻 Bergabung",
+                    "msg": "⏰ Pendaftaran tersisa *29 detik*"
                 }
             }
 
@@ -1093,19 +1137,26 @@ def notify_mafia_and_don(chat):
     mafia_and_don_list = []
     players_copy = list(chat.players.items())
 
+    # Словарь перевода ролей
+    role_translations = {
+        '🤵🏻‍♂️ Дон': {'kz': '🤵🏻‍♂️ *Дон*', 'ru': '🤵🏻‍♂️ *Дон*', 'uz': '🤵🏻‍♂️ *Don*', 'id': '🤵🏻‍♂️ *Don*'},
+        '🤵🏻 Мафия': {'kz': '🤵🏻 *Мафия*', 'ru': '🤵🏻 *Мафия*', 'uz': '🤵🏻 *Mafiya*', 'id': '🤵🏻 *Mafia*'}
+    }
+
     for player_id, player in players_copy:
-        if player['role'] == '🤵🏻‍♂️ Дон':
-            mafia_and_don_list.append(f"[{player['name']}](tg://user?id={player_id}) - 🤵🏻‍♂️ *Дон*")
-        elif player['role'] == '🤵🏻 Мафия':
-            mafia_and_don_list.append(f"[{player['name']}](tg://user?id={player_id}) - 🤵🏻 *Мафия*")
+        if player['role'] in role_translations:
+            role_text = role_translations[player['role']].get(lang, player['role'])
+            mafia_and_don_list.append(f"[{player['name']}](tg://user?id={player_id}) - {role_text}")
 
     # Тексты на разных языках
     messages = {
         'kz': "*Өз жақтастарыңды біле жүр*:\n",
-        'ru': "*Знай своих союзников*:\n"
+        'ru': "*Знай своих союзников*:\n",
+        'uz': "*O‘z ittifoqdoshingni bil*:\n",
+        'id': "*Kenali sekutumu*:\n"
     }
     
-    message = messages[lang] + "\n".join(mafia_and_don_list)
+    message = messages.get(lang, messages['kz']) + "\n".join(mafia_and_don_list)
 
     for player_id, player in players_copy:
         if player['role'] in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон']:
@@ -1125,6 +1176,16 @@ def confirm_vote(chat_id, player_id, player_name, player_last_name, confirm_vote
         },
         "ru": {
             "confirm_msg": "Вы действительно хотите казнить {name}?",
+            "yes": "👍🏼 {count}",
+            "no": "👎🏼 {count}"
+        },
+        "uz": {
+            "confirm_msg": "Rostdan ham {name}ni osmoqchimisiz?",
+            "yes": "👍🏼 {count}",
+            "no": "👎🏼 {count}"
+        },
+        "id": {
+            "confirm_msg": "Apakah Anda yakin ingin menghukum {name}?",
             "yes": "👍🏼 {count}",
             "no": "👎🏼 {count}"
         }
@@ -1168,15 +1229,19 @@ def confirm_vote(chat_id, player_id, player_name, player_last_name, confirm_vote
 
     return msg.message_id, t["confirm_msg"].format(name=full_name_link)
 
+
 def end_day_voting(chat):
     try:
         lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
 
         def send_vote_end_message():
-            if lang == 'kz':
-                send_message(chat.chat_id, "*Дауыс беру аяқталды*\nХалық келісе алмады... Ешкімді аспай, бәрі үйлеріне қайтты...", parse_mode="Markdown")
-            if lang == 'ru':
-                send_message(chat.chat_id, "*Голосование завершено*\nНарод не смог договориться... Никто не был повешен, все разошлись по домам.", parse_mode="Markdown")
+            messages = {
+                'kz': "*Дауыс беру аяқталды*\nХалық келісе алмады... Ешкімді аспай, бәрі үйлеріне қайтты...",
+                'ru': "*Голосование завершено*\nНарод не смог договориться... Никто не был повешен, все разошлись по домам.",
+                'uz': "*Ovoz berish yakunlandi*\nOdamlar kelisha olmadi... Hech kim osilmadi, hamma uyiga qaytdi...",
+                'id': "*Voting selesai*\nOrang-orang tidak bisa mencapai kesepakatan... Tidak ada yang digantung, semua pulang ke rumah..."
+            }
+            send_message(chat.chat_id, messages.get(lang, messages['kz']), parse_mode="Markdown")
 
         if not chat.vote_counts:
             chat.voting_finished = True
@@ -1302,35 +1367,63 @@ def check_game_end(chat, game_start_time):
     lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
 
     text = {
-        'ru': {
-            'game_over': "Игра окончена! 🙂",
-            'winners': "Победители:",
-            'remaining': "Оставшиеся игроки:",
-            'time': "Время игры: {} мин. {} сек.",
-            'you_earned': "*Игра окончена!*\nВы получили {} 💶",
-            'teams': {
-                'Самоубийца': "Самоубийца",
-                'Жауыз': "Маньяк",
-                'Халық': "Мирные жители",
-                'won': "победили",
-                'Мафия': "Мафия"
-            }
-        },
-        'kz': {
-            'game_over': "Ойын аяқталды! 🙂",
-            'winners': "Жеңімпаздар:",
-            'remaining': "Қалған ойыншылар:",
-            'time': "Ойын уақыты: {} мин. {} сек.",
-            'you_earned': "*Ойын аяқталды!*\nСен {} 💶 алдың",
-            'teams': {
-                'Самоубийца': "Өз-өзіне қол жұмсаушы",
-                'Жауыз': "Жауыз",
-                'Халық': "Халық",
-                'won': "жеңді",
-                'Мафия': "Мафия"
-            }
+    'ru': {
+        'game_over': "Игра окончена! 🙂",
+        'winners': "Победители:",
+        'remaining': "Оставшиеся игроки:",
+        'time': "Время игры: {} мин. {} сек.",
+        'you_earned': "*Игра окончена!*\nВы получили {} 💶",
+        'teams': {
+            'Самоубийца': "Самоубийца",
+            'Жауыз': "Маньяк",
+            'Халық': "Мирные жители",
+            'won': "победили",
+            'Мафия': "Мафия"
         }
-    }[lang]
+    },
+    'kz': {
+        'game_over': "Ойын аяқталды! 🙂",
+        'winners': "Жеңімпаздар:",
+        'remaining': "Қалған ойыншылар:",
+        'time': "Ойын уақыты: {} мин. {} сек.",
+        'you_earned': "*Ойын аяқталды!*\nСен {} 💶 алдың",
+        'teams': {
+            'Самоубийца': "Өз-өзіне қол жұмсаушы",
+            'Жауыз': "Жауыз",
+            'Халық': "Халық",
+            'won': "жеңді",
+            'Мафия': "Мафия"
+        }
+    },
+    'uz': {
+        'game_over': "O‘yin tugadi! 🙂",
+        'winners': "G‘oliblar:",
+        'remaining': "Qolgan o‘yinchilar:",
+        'time': "O‘yin vaqti: {} daqiqa {} soniya.",
+        'you_earned': "*O‘yin tugadi!*\nSiz {} 💶 oldingiz",
+        'teams': {
+            'Самоубийца': "O‘z joniga qasd qiluvchi",
+            'Жауыз': "Jinoyatchi",
+            'Халық': "Tinç aholi",
+            'won': "g‘olib bo‘ldi",
+            'Мафия': "Mafiya"
+        }
+    },
+    'id': {
+        'game_over': "Permainan selesai! 🙂",
+        'winners': "Pemenang:",
+        'remaining': "Sisa pemain:",
+        'time': "Waktu permainan: {} menit {} detik.",
+        'you_earned': "*Permainan selesai!*\nAnda mendapatkan {} 💶",
+        'teams': {
+            'Самоубийца': "Bunuh diri",
+            'Жауыз': "Psikopat",
+            'Халық': "Warga sipil",
+            'won': "menang",
+            'Мафия': "Mafia"
+        }
+    }
+}[lang]
 
     def is_mafia_win(total_alive, mafia_team_count):
         non_mafia_count = total_alive - mafia_team_count
@@ -1628,6 +1721,12 @@ def disable_vote_buttons(chat):
         },
         "ru": {
             "voting_ended": "_Голосование завершено_"
+        },
+        "uz": {
+            "voting_ended": "_Ovoz berish yakunlandi_"
+        },
+        "id": {
+            "voting_ended": "_Voting selesai_"
         }
     }
 
@@ -1690,6 +1789,36 @@ def send_voting_results(chat, yes_votes, no_votes, player_name=None, player_last
             '👮🏼 Сержант': '👮🏼 Сержант',
             '🔪 Жауыз': '🔪 Жауыз',
             '🤦🏼 Самоубийца': '🤦🏼 Суицид'
+        },
+        'uz': {
+            '🤵🏻‍♂️ Дон': '🤵🏻‍♂️ Don',
+            '🤵🏻 Мафия': '🤵🏻 Mafiya',
+            '👨🏼‍⚕️ Дәрігер': '👨🏼‍⚕️ Shifokor',
+            '🕵🏼 Комиссар': '🕵🏼 Komissar',
+            '👨🏼 Тату тұрғын': '👨🏼 Tinç aholi',
+            '🧙‍♂️ Қаңғыбас': '🧙‍♂️ Begona',
+            '🤞 Жолы болғыш': '🤞 Omadli',
+            '💣 Камикадзе': '💣 Kamikadze',
+            '💃🏼 Көңілдес': '💃🏼 Sevgilisi',
+            '👨🏼‍💼 Қорғаушы': '👨🏼‍💼 Advokat',
+            '👮🏼 Сержант': '👮🏼 Serjant',
+            '🔪 Жауыз': '🔪 Jinoyatchi',
+            '🤦🏼 Самоубийца': '🤦🏼 O‘z joniga qasd qiluvchi'
+        },
+        'id': {
+            '🤵🏻‍♂️ Дон': '🤵🏻‍♂️ Don',
+            '🤵🏻 Мафия': '🤵🏻 Mafia',
+            '👨🏼‍⚕️ Дәрігер': '👨🏼‍⚕️ Dokter',
+            '🕵🏼 Комиссар': '🕵🏼 Komisaris',
+            '👨🏼 Тату тұрғын': '👨🏼 Warga sipil',
+            '🧙‍♂️ Қаңғыбас': '🧙‍♂️ Gelandangan',
+            '🤞 Жолы болғыш': '🤞 Beruntung',
+            '💣 Камикадзе': '💣 Kamikaze',
+            '💃🏼 Көңілдес': '💃🏼 Kekasih',
+            '👨🏼‍💼 Қорғаушы': '👨🏼‍💼 Pengacara',
+            '👮🏼 Сержант': '👮🏼 Sersan',
+            '🔪 Жауыз': '🔪 Psikopat',
+            '🤦🏼 Самоубийца': '🤦🏼 Bunuh diri'
         }
     }
 
@@ -1702,8 +1831,8 @@ def send_voting_results(chat, yes_votes, no_votes, player_name=None, player_last
     full_name = f"{player_name} {player_last_name}"
     player_link = f"[{full_name}](tg://user?id={player_id})"
 
-    # Тексты сообщений — теперь player_link уже определена
-    texts = {
+    # Тексты сообщений
+    texts_messages = {
         "kz": {
             "result": "*Дауыс беру нәтижесі:*",
             "saved": f"⚖️ Алайда {player_link} өзін дарға асудан сақтап қалды!",
@@ -1719,13 +1848,28 @@ def send_voting_results(chat, yes_votes, no_votes, player_name=None, player_last
             "executed": f"_Сегодня_ {player_link} _был повешен_\nОн был *{role_translations[lang].get(player_role, player_role)}*.",
             "executed_private": "*На дневном собрании тебя повесили без единого сомнения :(*",
             "nobody": "Народ не смог прийти к согласию...\nНикто не был повешен,\nвсе разошлись по домам..."
+        },
+        "uz": {
+            "result": "*Ovoz berish natijalari:*",
+            "saved": f"⚖️ Ammo {player_link} o‘zini osilishdan qutqardi!",
+            "saved_private": "*Sizni osmoqchi bo‘lganda, Osilish qalqoni sizni saqlab qoldi! 🛡️*",
+            "executed": f"Bugun {player_link} osildi\nU *{role_translations[lang].get(player_role, player_role)}* edi..",
+            "executed_private": "*Kunduzgi yig‘ilishda sizni osishdi :(*",
+            "nobody": "Odamlar kelisha olmadi...\nHech kim osilmadi,\nhamma uyiga qaytdi..."
+        },
+        "id": {
+            "result": "*Hasil voting:*",
+            "saved": f"⚖️ Namun {player_link} selamat dari penggantungan!",
+            "saved_private": "*Ketika Anda hampir digantung, Perisai penggantung menyelamatkan Anda! 🛡️*",
+            "executed": f"Hari ini {player_link} digantung\nDia adalah *{role_translations[lang].get(player_role, player_role)}*..",
+            "executed_private": "*Di pertemuan siang, Anda digantung tanpa ragu :(*",
+            "nobody": "Orang-orang tidak bisa mencapai kesepakatan...\nTidak ada yang digantung,\nsemua pulang ke rumah..."
         }
     }
 
-    t = texts.get(lang, texts["kz"])
+    t = texts_messages.get(lang, texts_messages["kz"])
 
     if yes_votes > no_votes:
-        # ✅ Проверяем включена ли защита от повешения в настройках чата
         if (hanging_shield_enabled and 
             profile and 
             profile.get('hanging_shield', 0) > 0 and 
@@ -1775,6 +1919,18 @@ def send_sheriff_menu(chat, sheriff_id, callback_query=None, message_id=None):
             "choose": "Выбери, что делать этой ночью",
             "check": "🔍 Проверить",
             "shoot": "🔫 Выстрелить"
+        },
+        "uz": {
+            "not_night": "Bu harakatlar faqat kechasi mumkin.",
+            "choose": "Bugun kechasi nima qilmoqchi ekaningni tanla",
+            "check": "🔍 Tekshirish",
+            "shoot": "🔫 Otish"
+        },
+        "id": {
+            "not_night": "Tindakan hanya tersedia di malam hari.",
+            "choose": "Pilih apa yang akan dilakukan malam ini",
+            "check": "🔍 Periksa",
+            "shoot": "🔫 Tembak"
         }
     }
 
@@ -1851,8 +2007,16 @@ def check_and_transfer_don_role(chat):
         'kz': {
             'became_don': 'Енді сен 🤵🏻‍♂️ Донсың!',
             'don_inherited': '🤵🏻 *Мафия* 🤵🏻‍♂️ *Дон* рөлін өзіне мұра етті'
+        },
+        'uz': {
+            'became_don': 'Endi siz 🤵🏻‍♂️ Don siz!',
+            'don_inherited': '🤵🏻 *Mafiya* 🤵🏻‍♂️ *Don* rolini meros qilib berdi'
+        },
+        'id': {
+            'became_don': 'Sekarang kamu 🤵🏻‍♂️ Don!',
+            'don_inherited': '🤵🏻 *Mafia* 🤵🏻‍♂️ *Don* mewariskan perannya'
         }
-    }[lang]
+    }.get(lang, texts['kz'])
 
     if chat.don_id not in chat.players or chat.players[chat.don_id]['status'] == 'dead':
         # Дон мертв, проверяем, есть ли еще мафия
@@ -2019,24 +2183,31 @@ def check_and_transfer_sheriff_role(chat):
         if chat.sergeant_id and chat.sergeant_id in chat.players and chat.players[chat.sergeant_id]['role'] != 'dead':
             new_sheriff_id = chat.sergeant_id
 
-            # Текст уведомления игроку
-            if lang == 'kz':
-                sheriff_text = "Енді сен 🕵🏼 Комиссарсың!"
-            if lang == 'ru':
-                sheriff_text = "Теперь ты 🕵🏼 Комиссар!"
+            # Тексты уведомления игроку
+            texts = {
+                'kz': "Енді сен 🕵🏼 Комиссарсың!",
+                'ru': "Теперь ты 🕵🏼 Комиссар!",
+                'uz': "Endi siz 🕵🏼 Komissarsiz!",
+                'id': "Sekarang kamu 🕵🏼 Komisaris!"
+            }
+            sheriff_text = texts.get(lang, texts['kz'])
 
             change_role(new_sheriff_id, chat.players, '🕵🏼 Комиссар', sheriff_text, chat)
             chat.sheriff_id = new_sheriff_id
             chat.sergeant_id = None  # Сержант больше не нужен
 
             # Сообщение в чат
-            if lang == 'kz':
-                msg = "👮🏼 *Сержант* 🕵🏼 *Комиссар* рөлін өзіне мұра етті"
-            if lang == 'ru':
-                msg = "👮🏼 *Сержант* унаследовал роль 🕵🏼 *Комиссара*"
+            msgs = {
+                'kz': "👮🏼 *Сержант* 🕵🏼 *Комиссар* рөлін өзіне мұра етті",
+                'ru': "👮🏼 *Сержант* унаследовал роль 🕵🏼 *Комиссара*",
+                'uz': "👮🏼 *Serjant* 🕵🏼 *Komissar* rolini meros qilib oldi",
+                'id': "👮🏼 *Sersan* mewarisi peran 🕵🏼 *Komisaris*"
+            }
+            msg = msgs.get(lang, msgs['kz'])
             send_message(chat.chat_id, msg, parse_mode="Markdown")
         else:
             logging.info("Нет сержанта для передачи роли Комиссара.")
+
 
 def notify_police(chat):
     police_members = []
@@ -2046,22 +2217,31 @@ def notify_police(chat):
 
     if chat.sheriff_id and chat.sheriff_id in chat.players and chat.players[chat.sheriff_id]['role'] == '🕵🏼 Комиссар':
         sheriff_name = get_full_name(chat.players[chat.sheriff_id])
-        if lang == 'kz':
-            police_members.append(f"[{sheriff_name}](tg://user?id={chat.sheriff_id}) - 🕵🏼 *Комиссар*")
-        if lang == 'ru':
-            police_members.append(f"[{sheriff_name}](tg://user?id={chat.sheriff_id}) - 🕵🏼 *Комиссар*")
+        role_texts = {
+            'kz': "🕵🏼 *Комиссар*",
+            'ru': "🕵🏼 *Комиссар*",
+            'uz': "🕵🏼 *Komissar*",
+            'id': "🕵🏼 *Komisaris*"
+        }
+        police_members.append(f"[{sheriff_name}](tg://user?id={chat.sheriff_id}) - {role_texts.get(lang, role_texts['kz'])}")
 
     if chat.sergeant_id and chat.sergeant_id in chat.players and chat.players[chat.sergeant_id]['role'] == '👮🏼 Сержант':
         sergeant_name = get_full_name(chat.players[chat.sergeant_id])
-        if lang == 'kz':
-            police_members.append(f"[{sergeant_name}](tg://user?id={chat.sergeant_id}) - 👮🏼 *Сержант*")
-        if lang == 'ru':
-            police_members.append(f"[{sergeant_name}](tg://user?id={chat.sergeant_id}) - 👮🏼 *Сержант*")
+        role_texts = {
+            'kz': "👮🏼 *Сержант*",
+            'ru': "👮🏼 *Сержант*",
+            'uz': "👮🏼 *Serjant*",
+            'id': "👮🏼 *Sersan*"
+        }
+        police_members.append(f"[{sergeant_name}](tg://user?id={chat.sergeant_id}) - {role_texts.get(lang, role_texts['kz'])}")
 
-    if lang == 'kz':
-        message = "🚨 *Полициялық құрам:*\n" + "\n".join(police_members)
-    if lang == 'ru':
-        message = "🚨 *Полицейский состав:*\n" + "\n".join(police_members)
+    headers = {
+        'kz': "🚨 *Полициялық құрам:*",
+        'ru': "🚨 *Полицейский состав:*",
+        'uz': "🚨 *Politsiya tarkibi:*",
+        'id': "🚨 *Anggota Polisi:*"
+    }
+    message = headers.get(lang, headers['kz']) + "\n" + "\n".join(police_members)
 
     for player_id in [chat.sheriff_id, chat.sergeant_id]:
         if player_id in chat.players:
@@ -2086,7 +2266,7 @@ role_translations = {
         '👮🏼 Сержант': '👮🏼 Сержант',
         '🔪 Жауыз': '🔪 Маньяк',
         '🤦🏼 Самоубийца': 'Самоубийца',
-        '💤 Маубас': '💤 Лентяй',
+        '💤 Маубас': '💤 Сон',
         '💣': '💣 Камикадзе'
     },
     'kz': {
@@ -2105,6 +2285,40 @@ role_translations = {
         '🤦🏼 Самоубийца': '🤦🏼 Суицид',
         '💤 Маубас': '💤 Маубас',
         '💣': '💣 Камикадзе'
+    },
+    'uz': {
+        '🤵🏻‍♂️ Дон': '🤵🏻‍♂️ Don',
+        '🤵🏻 Мафия': '🤵🏻 Mafiya',
+        '👨🏼‍⚕️ Дәрігер': '👨🏼‍⚕️ Shifokor',
+        '🕵🏼 Комиссар': '🕵🏼 Komissar',
+        '👨🏼 Тату тұрғын': '👨🏼 Tinch aholi',
+        '🧙‍♂️ Қаңғыбас': '🧙‍♂️ Bekar',
+        '🤞 Жолы болғыш': '🤞 Omadli',
+        '💣 Камикадзе': '💣 Kamikadze',
+        '💃🏼 Көңілдес': '💃🏼 Sevgilisi',
+        '👨🏼‍💼 Қорғаушы': '👨🏼‍💼 Advokat',
+        '👮🏼 Сержант': '👮🏼 Serjant',
+        '🔪 Жауыз': '🔪 Maniak',
+        '🤦🏼 Самоубийца': '🤦🏼 Oʻzini o‘ldiruvchi',
+        '💤 Маубас': '💤 Uxlovchi',
+        '💣': '💣 Kamikadze'
+    },
+    'id': {
+        '🤵🏻‍♂️ Дон': '🤵🏻‍♂️ Don',
+        '🤵🏻 Мафия': '🤵🏻 Mafia',
+        '👨🏼‍⚕️ Дәрігер': '👨🏼‍⚕️ Dokter',
+        '🕵🏼 Комиссар': '🕵🏼 Komisaris',
+        '👨🏼 Тату тұрғын': '👨🏼 Warga damai',
+        '🧙‍♂️ Қаңғыбас': '🧙‍♂️ Gelandangan',
+        '🤞 Жолы болғыш': '🤞 Beruntung',
+        '💣 Камикадзе': '💣 Kamikaze',
+        '💃🏼 Көңілдес': '💃🏼 Selir',
+        '👨🏼‍💼 Қорғаушы': '👨🏼‍💼 Pengacara',
+        '👮🏼 Сержант': '👮🏼 Sersan',
+        '🔪 Жауыз': '🔪 Maniak',
+        '🤦🏼 Самоубийца': '🤦🏼 Bunuh diri',
+        '💤 Маубас': '💤 Tidur',
+        '💣': '💣 Kamikaze'
     }
 }
 
@@ -2114,10 +2328,14 @@ def translate_role(role, lang):
 
 def process_deaths(chat, killed_by_mafia, killed_by_sheriff, killed_by_bomber=None, killed_by_maniac=None):
     lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
-    shield_enabled = chat_settings.get(chat.chat_id, {}).get("shield_buff", True)  # ✅ Проверяем настройку щита
+    shield_enabled = chat_settings.get(chat.chat_id, {}).get("shield_buff", True)
     combined_message = ""
     deaths = {}
     doc_visit_notified = set()
+
+    # ==========================
+    #   1. НАКОПЛЕНИЕ СМЕРТЕЙ
+    # ==========================
 
     if hasattr(chat, 'kamikaze_kill') and chat.kamikaze_kill:
         victim_id, victim = chat.kamikaze_kill
@@ -2147,6 +2365,7 @@ def process_deaths(chat, killed_by_mafia, killed_by_sheriff, killed_by_bomber=No
         else:
             deaths[victim_id] = {'victim': victim, 'roles': ['🔪 Жауыз']}
 
+    # Пропуск хода 2 раза подряд
     for player_id, player in chat.players.items():
         if player['role'] != 'dead' and player.get('skipped_actions', 0) >= 2:
             if player_id in deaths:
@@ -2154,89 +2373,137 @@ def process_deaths(chat, killed_by_mafia, killed_by_sheriff, killed_by_bomber=No
             else:
                 deaths[player_id] = {'victim': player, 'roles': ['💤 Маубас']}
 
-    for victim_id, death_info in list(deaths.items()):
-        victim = death_info['victim']
-        roles_involved = death_info['roles']
+    # ==========================
+    #   2. ПРОВЕРКА ЩИТА И ДОКА
+    # ==========================
 
-        def check_shield_or_doc(victim_id, victim):
-            # ✅ Проверяем включен ли щит в настройках чата
-            if not shield_enabled:
-                return False
-                
-            if '💤' not in roles_involved:
-                profile = player_profiles.get(victim_id, {})
-                shield_count = profile.get('shield', 0)
-                shield_used = profile.get('shield_used', 0)
-                vip_until = profile.get('vip_until')
-                is_vip = datetime.now() < datetime.strptime(vip_until, '%Y-%m-%d %H:%M:%S') if vip_until else False
-                shield_limit = 2 if is_vip else 1
-
-                if shield_count > 0 and shield_used < shield_limit and profile.get('shield_active', False):
-                    profile['shield_used'] = shield_used + 1
-                    profile['shield'] -= 1
-
-                    if lang == 'kz':
-                        send_message(chat.chat_id, "🪽 Ойыншылардың біреуі қорғанысын жұмсады")
-                        send_message(victim_id, "⚔️ Біреу саған қастандық жасады, бірақ қорғанысың сақтап қалды!")
-                    if lang == 'ru':
-                        send_message(chat.chat_id, "🪽 Кто-то из игроков использовал защиту")
-                        send_message(victim_id, "⚔️ Кто-то покушался на тебя, но твоя защита спасла тебя!")
-                    return True
-
-                if chat.doc_target and chat.doc_target == victim_id and victim_id not in doc_visit_notified:
-                    doc_visit_notified.add(victim_id)
-                    if lang == 'kz':
-                        send_message(chat.doc_target, '👨🏼‍⚕️ *Дәрігер* сені емдеп алды', parse_mode="Markdown")
-                    if lang == 'ru':
-                        send_message(chat.doc_target, '👨🏼‍⚕️ *Доктор* тебя спас', parse_mode="Markdown")
-                    return True
+    def check_shield_or_doc(victim_id, victim):
+        if not shield_enabled:
             return False
 
-        if check_shield_or_doc(victim_id, victim):
-            del deaths[victim_id]
-            continue
+        if '💤' not in deaths.get(victim_id, {}).get('roles', []):
+            profile = player_profiles.get(victim_id, {})
+            shield_count = profile.get('shield', 0)
+            shield_used = profile.get('shield_used', 0)
+            vip_until = profile.get('vip_until')
+            is_vip = datetime.now() < datetime.strptime(vip_until, '%Y-%m-%d %H:%M:%S') if vip_until else False
+            shield_limit = 2 if is_vip else 1
 
+            # Щит
+            if shield_count > 0 and shield_used < shield_limit and profile.get('shield_active', False):
+                profile['shield_used'] = shield_used + 1
+                profile['shield'] -= 1
+
+                msg_all = {
+                    'kz': "🪽 Ойыншылардың біреуі қорғанысын жұмсады",
+                    'ru': "🪽 Кто-то из игроков использовал защиту",
+                    'uz': "🪽 O‘yinchilardan biri himoyasidan foydalandi",
+                    'id': "🪽 Salah satu pemain menggunakan pelindung"
+                }
+
+                msg_user = {
+                    'kz': "⚔️ Біреу саған қастандық жасады, бірақ қорғанысың сақтап қалды!",
+                    'ru': "⚔️ Кто-то покушался на тебя, но твоя защита спасла тебя!",
+                    'uz': "⚔️ Kimdir senga hujum qildi, lekin himoyang seni saqlab qoldi!",
+                    'id': "⚔️ Seseorang mencoba menyerangmu, tetapi perisai mu menyelamatkanmu!"
+                }
+
+                send_message(chat.chat_id, msg_all.get(lang, msg_all['ru']))
+                send_message(victim_id, msg_user.get(lang, msg_user['ru']))
+                return True
+
+            # Доктор
+            if chat.doc_target and chat.doc_target == victim_id and victim_id not in doc_visit_notified:
+                doc_visit_notified.add(victim_id)
+
+                doc_msg = {
+                    'kz': "👨🏼‍⚕️ *Дәрігер* сені емдеп алды",
+                    'ru': "👨🏼‍⚕️ *Доктор* тебя спас",
+                    'uz': "👨🏼‍⚕️ *Doktor* seni qutqardi",
+                    'id': "👨🏼‍⚕️ *Dokter* menyelamatkanmu"
+                }
+
+                send_message(chat.doc_target, doc_msg.get(lang, doc_msg['ru']), parse_mode="Markdown")
+                return True
+
+        return False
+
+    # Обрабатываем срабатывание щита/дока
+    for victim_id in list(deaths.keys()):
+        if check_shield_or_doc(victim_id, deaths[victim_id]['victim']):
+            del deaths[victim_id]
+
+    # ==========================
+    #   3. РОЛЬ "ВЕЗУЧИЙ"
+    # ==========================
+
+    for victim_id in list(deaths.keys()):
+        victim = deaths[victim_id]['victim']
         if victim['role'] == '🤞 Жолы болғыш':
             if random.randint(1, 100) <= 50:
-                if lang == 'kz':
-                    send_message(chat.chat_id, "🤞 Кейбір ойыншылардың жолы болды")
-                    send_message(victim_id, "🤞 Осы түні саған қастық жасалды, бірақ сенің жолың болды!")
-                if lang == 'ru':
-                    send_message(chat.chat_id, "🤞 Кому-то повезло этой ночью")
-                    send_message(victim_id, "🤞 На тебя покушались этой ночью, но тебе повезло!")
+
+                msg_all = {
+                    'kz': "🤞 Кейбір ойыншылардың жолы болды",
+                    'ru': "🤞 Кому-то повезло этой ночью",
+                    'uz': "🤞 Kimningdir bu tun omadi keldi",
+                    'id': "🤞 Seseorang beruntung malam ini"
+                }
+                msg_user = {
+                    'kz': "🤞 Осы түні саған қастық жасалды, бірақ сенің жолың болды!",
+                    'ru': "🤞 На тебя покушались этой ночью, но тебе повезло!",
+                    'uz': "🤞 Bu tun senga hujum qilishdi, lekin omading keldi!",
+                    'id': "🤞 Malam ini seseorang mencoba menyerangmu, tapi kamu beruntung!"
+                }
+
+                send_message(chat.chat_id, msg_all.get(lang, msg_all['ru']))
+                send_message(victim_id, msg_user.get(lang, msg_user['ru']))
                 del deaths[victim_id]
                 continue
 
-        if victim['role'] == '💣 Камикадзе':
-            for killer_role in roles_involved:
-                killer_id = None
-                if killer_role == '🤵🏻‍♂️ Дон' and chat.don_id:
-                    killer_id = chat.don_id
-                elif killer_role == '🕵🏼 Комиссар' and chat.sheriff_id:
-                    killer_id = chat.sheriff_id
-                elif killer_role == '🔪 Жауыз' and chat.maniac_id:
-                    killer_id = chat.maniac_id
+    # ==========================
+    #   4. КАМИКАДЗЕ УБИВАЕТ
+    # ==========================
 
-                if killer_id and killer_id in chat.players:
-                    if check_shield_or_doc(killer_id, chat.players[killer_id]):
-                        continue
-                    if killer_id not in deaths:
-                        deaths[killer_id] = {'victim': chat.players[killer_id], 'roles': ['💣']}
-                    else:
-                        deaths[killer_id]['roles'].append('💣 Камикадзе')
+    for victim_id, death_info in list(deaths.items()):
+        victim = death_info['victim']
+        for killer_role in death_info['roles']:
+            killer_id = None
+            if killer_role == '🤵🏻‍♂️ Дон':
+                killer_id = chat.don_id
+            elif killer_role == '🕵🏼 Комиссар':
+                killer_id = chat.sheriff_id
+            elif killer_role == '🔪 Жауыз':
+                killer_id = chat.maniac_id
+
+            if killer_id and killer_id in chat.players:
+                if check_shield_or_doc(killer_id, chat.players[killer_id]):
+                    continue
+                if killer_id not in deaths:
+                    deaths[killer_id] = {'victim': chat.players[killer_id], 'roles': ['💣']}
+                else:
+                    deaths[killer_id]['roles'].append('💣 Камикадзе')
+
+    # ==========================
+    #   5. ДОКТОР ХОДИЛ
+    # ==========================
 
     if chat.doc_target and chat.doc_target not in deaths and chat.doc_target not in doc_visit_notified:
         doc_visit_notified.add(chat.doc_target)
         doc_target = chat.players.get(chat.doc_target)
         if doc_target and doc_target['role'] != 'dead':
-            if lang == 'kz':
-                msg = "👨🏼‍⚕️ Дәрігер қонағыңызға келді"
-            else:
-                msg = "👨🏼‍⚕️ Доктор приходил к тебе в гости"
-            try:
-                send_message(chat.doc_target, msg, parse_mode="Markdown")
-            except Exception as e:
-                logging.error(f"Не удалось отправить сообщение докторской цели {chat.doc_target}: {e}")
+
+            msg = {
+                'kz': "👨🏼‍⚕️ Дәрігер қонағыңызға келді",
+                'ru': "👨🏼‍⚕️ Доктор приходил к тебе в гости",
+                'uz': "👨🏼‍⚕️ Doktor senga tashrif buyurdi",
+                'id': "👨🏼‍⚕️ Dokter datang mengunjungimu"
+            }
+
+            send_message(chat.doc_target, msg.get(lang, msg['ru']), parse_mode="Markdown")
+
+    # ==========================
+    #   6. ФОРМИРОВАНИЕ ИТОГОВОГО ТЕКСТА
+    # ==========================
 
     for victim_id, death_info in deaths.items():
         victim = death_info['victim']
@@ -2244,26 +2511,47 @@ def process_deaths(chat, killed_by_mafia, killed_by_sheriff, killed_by_bomber=No
         victim_link = f"[{get_full_name(victim)}](tg://user?id={victim_id})"
         translated_roles = ", ".join(translate_role(r, lang) for r in roles_involved)
 
-        if lang == 'kz':
-            combined_message += f"Түнде *{translate_role(victim['role'], lang)}* {victim_link} аяусыз өлтірілген болды...\n"
-            combined_message += f"Оған {translated_roles} кіріп шықты деседі\n\n"
-        if lang == 'ru':
-            combined_message += f"Сегодня был жестоко убит *{translate_role(victim['role'], lang)}* {victim_link}...\n"
-            combined_message += f"ходят слухи, что у него был визит от {translated_roles}\n\n"
+        msg_death_1 = {
+            'kz': f"Түнде *{translate_role(victim['role'], lang)}* {victim_link} аяусыз өлтірілген болды...\n",
+            'ru': f"Сегодня был жестоко убит *{translate_role(victim['role'], lang)}* {victim_link}...\n",
+            'uz': f"Bugun *{translate_role(victim['role'], lang)}* {victim_link} qattiq shafqatsizlik bilan o‘ldirildi...\n",
+            'id': f"Malam ini *{translate_role(victim['role'], lang)}* {victim_link} terbunuh dengan kejam...\n"
+        }
+
+        msg_death_2 = {
+            'kz': f"Оған {translated_roles} кіріп шықты деседі\n\n",
+            'ru': f"Ходят слухи, что у него был визит от {translated_roles}\n\n",
+            'uz': f"Aytishlaricha, unga {translated_roles} tashrif buyurgan ekan\n\n",
+            'id': f"Rumornya, ia dikunjungi oleh {translated_roles}\n\n"
+        }
+
+        combined_message += msg_death_1.get(lang, msg_death_1['ru'])
+        combined_message += msg_death_2.get(lang, msg_death_2['ru'])
 
         chat.remove_player(victim_id, killed_by='night')
 
-    if combined_message:
-        send_message(chat.chat_id, combined_message, parse_mode="Markdown")
+    # ==========================
+    #   7. ЕСЛИ НИКТО НЕ УМЕР
+    # ==========================
+
+    if not combined_message:
+        no_death_msg = {
+            'kz': "_🤷 Неткен ғажап! Бұл түнде ешкім көз жұмбады…_",
+            'ru': "_🤷 Как ни странно, этой ночью никто не погиб…_",
+            'uz': "_🤷 Qiziq, bu tun hech kim o‘lmagan…_",
+            'id': "_🤷 Anehnya, malam ini tidak ada yang mati…_"
+        }
+        send_message(chat.chat_id, no_death_msg.get(lang, no_death_msg['ru']), parse_mode="Markdown")
     else:
-        if lang == 'kz':
-            send_message(chat.chat_id, "_🤷 Неткен ғажап! Бұл түнде ешкім көз жұмбады…_", parse_mode="Markdown")
-        if lang == 'ru':
-            send_message(chat.chat_id, "_🤷 Как ни странно, этой ночью никто не погиб…_", parse_mode="Markdown")
+        send_message(chat.chat_id, combined_message, parse_mode="Markdown")
+
+    # ==========================
+    #   8. ПЕРЕДАЧА РОЛЕЙ
+    # ==========================
 
     check_and_transfer_don_role(chat)
     check_and_transfer_sheriff_role(chat)
-
+    
 @bot.callback_query_handler(func=lambda call: call.data.startswith('kamikaze_choice_'))
 def handle_kamikaze_callback(call):
     """Обработчик выбора камикадзе"""
@@ -2299,7 +2587,7 @@ def handle_kamikaze_callback(call):
 def get_user_language(user_id):
     """Получает язык пользователя из профиля или настроек"""
     profile = player_profiles.get(user_id, {})
-    return profile.get('language', 'kz')  # По умолчанию казахский
+    return profile.get('language', 'ru')  # По умолчанию казахский
 
 
 
@@ -2390,10 +2678,11 @@ def process_mafia_action(chat):
     lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
     mafia_victim = None
 
-    # Нет голосов или уже есть жертва — нет смысла продолжать
+    # Нет голосов или уже есть жертва
     if not chat.mafia_votes or chat.dead:
         return None
 
+    # Подсчёт голосов
     vote_counts = {}
     for voter_id, victim_id in chat.mafia_votes.items():
         weight = 3 if voter_id == chat.don_id else 1
@@ -2402,56 +2691,86 @@ def process_mafia_action(chat):
     max_votes = max(vote_counts.values(), default=0)
     possible_victims = [victim for victim, votes in vote_counts.items() if votes == max_votes]
 
-    # Ничья
+    # ----------------------------
+    #   НИЧЬЯ
+    # ----------------------------
     if len(possible_victims) > 1:
+
         if chat.don_id in chat.mafia_votes:
             mafia_victim = chat.mafia_votes[chat.don_id]
+
         else:
+            msg_tie = {
+                "kz": "*Дауыс беру аяқталды.*\nОтбасы ортақ шешімге келе алмай, ешкімде құрбан етпеді",
+                "ru": "*Голосование завершено.*\nСемья не пришла к единому мнению и никого не убила",
+                "uz": "*Ovoz berish yakunlandi.*\nMafiya bir qarorga kela olmadi va hech kimni o‘ldirmadi",
+                "id": "*Voting selesai.*\nKeluarga mafia tidak mencapai kesepakatan dan tidak membunuh siapa pun"
+            }
+
             try:
-                if lang == 'kz':
-                    send_message_to_mafia(chat, "*Дауыс беру аяқталды.*\nОтбасы ортақ шешімге келе алмай, ешкімде құрбан етпеді")
-                if lang == 'ru':
-                    send_message_to_mafia(chat, "*Голосование завершено.*\nСемья не пришла к единому мнению и никого не убила")
+                send_message_to_mafia(chat, msg_tie.get(lang, msg_tie["ru"]))
             except Exception as e:
                 logging.error(f"Не удалось отправить сообщение о ничейном голосовании: {e}")
+
             chat.mafia_votes.clear()
             return None
 
-    # Один кандидат — выбираем
+    # ----------------------------
+    #   ЕСЛИ ОДИН КАНДИДАТ
+    # ----------------------------
     if len(possible_victims) == 1:
         mafia_victim = possible_victims[0]
 
-    # Если жертва найдена и она ещё в игре
+    # ----------------------------
+    #   ЕСЛИ ЖЕРТВА НАЙДЕНА
+    # ----------------------------
     if mafia_victim and mafia_victim in chat.players:
+
         victim_profile = chat.players[mafia_victim]
         mafia_victim_name = f"{victim_profile['name']} {victim_profile.get('last_name', '')}".replace('_', '\\_').replace('*', '\\*').replace('[', '\\[').strip()
 
+        msg_vote_ended_mafia = {
+            "kz": f"*Дауыс беру аяқталды*\nМафия {mafia_victim_name} дегенді құрбан етті",
+            "ru": f"*Голосование завершено*\nМафия выбрала жертвой {mafia_victim_name}",
+            "uz": f"*Ovoz berish yakunlandi*\nMafiya qurbon sifatida {mafia_victim_name} ni tanladi",
+            "id": f"*Voting selesai*\nMafia memilih {mafia_victim_name} sebagai korban"
+        }
+
+        msg_public = {
+            "kz": "🤵🏻 *Мафия* құрбанын таңдады...",
+            "ru": "🤵🏻 *Мафия* выбрала жертву...",
+            "uz": "🤵🏻 *Mafiya* qurbonni tanladi...",
+            "id": "🤵🏻 *Mafia* telah memilih korbannya..."
+        }
+
         try:
-            if lang == 'kz':
-                send_message_to_mafia(chat, f"*Дауыс беру аяқталды*\nМафия {mafia_victim_name} дегенді құрбан етті")
-                send_message(chat.chat_id, "🤵🏻 *Мафия* құрбанын таңдады...", parse_mode="Markdown")
-            if lang == 'ru':
-                send_message_to_mafia(chat, f"*Голосование завершено*\nМафия выбрала жертвой {mafia_victim_name}")
-                send_message(chat.chat_id, "🤵🏻 *Мафия* выбрала жертву...", parse_mode="Markdown")
+            send_message_to_mafia(chat, msg_vote_ended_mafia.get(lang, msg_vote_ended_mafia["ru"]))
+            send_message(chat.chat_id, msg_public.get(lang, msg_public["ru"]), parse_mode="Markdown")
         except Exception as e:
             logging.error(f"Не удалось отправить сообщение о выборе жертвы: {e}")
 
-        # Проверка на блокировку дона
+        # Дон заблокирован — голос отменён
         if chat.don_id and chat.don_id in chat.players:
             if chat.players[chat.don_id].get('voting_blocked', False):
-                mafia_victim = None  # Дон не может проголосовать — откатываем
+                mafia_victim = None
 
-        # Если всё в порядке — устанавливаем жертву
         if mafia_victim:
             chat.dead = (mafia_victim, victim_profile)
 
-    # Если в итоге так и не выбрали жертву
+    # ----------------------------
+    #   ЕСЛИ НИКТО НЕ БЫЛ ВЫБРАН
+    # ----------------------------
     if not mafia_victim or mafia_victim not in chat.players:
+
+        msg_fail = {
+            "kz": "*Дауыс беру аяқталды.*\nОтбасы ортақ шешімге келе алмай, ешкімде құрбан етпеді",
+            "ru": "*Голосование завершено.*\nСемья не смогла выбрать жертву",
+            "uz": "*Ovoz berish yakunlandi.*\nMafiya hech kimni qurbon sifatida tanlay olmadi",
+            "id": "*Voting selesai.*\nKeluarga mafia gagal memilih korban"
+        }
+
         try:
-            if lang == 'kz':
-                send_message_to_mafia(chat, "*Дауыс беру аяқталды.*\nОтбасы ортақ шешімге келе алмай, ешкімде құрбан етпеді")
-            if lang == 'ru':
-                send_message_to_mafia(chat, "*Голосование завершено.*\nСемья не смогла выбрать жертву")
+            send_message_to_mafia(chat, msg_fail.get(lang, msg_fail["ru"]))
         except Exception as e:
             logging.error(f"Не удалось отправить сообщение о провале голосования: {e}")
 
@@ -2566,7 +2885,7 @@ def handle_zip_upload(message):
                     'hanging_shield_active': parse_active_status(row.get('Щит от повешения активен', '🔴 OFF')),
                     'docs_active': parse_active_status(row.get('Документы активны', '🔴 OFF')),
                     'gun': int(row.get('Тапанша', 0) or 0),
-                    'language': row.get('Язык', 'kz')
+                    'language': row.get('Язык', 'ru')
                 }
 
         # ===== player_scores.csv =====
@@ -2804,6 +3123,37 @@ def send_zip_to_channel():
         bot.send_document(channel_id, zip_buffer, caption="Архив с данными игры")
     except Exception as e:
         logging.error(f"Ошибка отправки ZIP-архива: {e}")
+
+start_content = {
+            'kz': {
+                'text': '*Сәлем!*\nМен 🤵🏻 *Мафия* ойынының жүргізуші-ботымын.\nМені чатқа қосып, әкімші етіп белгілеңіз және ойынды тегін бастаңыз!',
+                'add_to_group': '🤵🏽 Ботты өз чатыңа қосу',
+                'join_chat': 'Чатқа кіру',
+                'news': '📰 Жаңалықтар',
+                'lang': '🌏 Тіл'
+            },
+            'ru': {
+                'text': '*Привет!*\nЯ 🤵🏻 *Мафия* бот-ведущий.\nДобавьте меня в чат, сделайте администратором и начинайте играть бесплатно!',
+                'add_to_group': '🤵🏽 Добавить бота в свой чат',
+                'join_chat': 'Войти в чат',
+                'news': '📰 Новости',
+                'lang': '🌏 Язык'
+            },
+            'uz': {
+                'text': '*Salom!*\nMen 🤵🏻 *Mafiya* o‘yinining boshqaruvchi-botiman.\nMeni chatga qo‘shing, admin qiling va bepul o‘ynashni boshlang!',
+                'add_to_group': '🤵🏽 Botni chatga qo‘shish',
+                'join_chat': 'Chatga kirish',
+                'news': '📰 Yangiliklar',
+                'lang': '🌏 Til'
+            },
+            'id': {
+                'text': '*Halo!*\nSaya 🤵🏻 bot-pemandu *Mafia*.\nTambahkan saya ke grup, jadikan admin, dan mulai bermain gratis!',
+                'add_to_group': '🤵🏽 Tambahkan bot ke grup Anda',
+                'join_chat': 'Masuk ke chat',
+                'news': '📰 Berita',
+                'lang': '🌏 Bahasa'
+            }
+        }
                 
 
 @bot.message_handler(commands=['start'])
@@ -2822,24 +3172,17 @@ def start_message(message):
         symbols_count = len(full_name)
 
         if words_count + symbols_count > 45:
-            msg = "❗ Ваш ник слишком длинный. Пожалуйста, сделайте его короче (сумма слов и символов не должна превышать 45)."
+            msg_texts = {
+                'kz': "❗ Сіздің ник тым ұзын. Оны қысқартыңыз (сөздер мен символдардың жалпы саны 45-тен аспауы керек).",
+                'ru': "❗ Ваш ник слишком длинный. Пожалуйста, сделайте его короче (сумма слов и символов не должна превышать 45).",
+                'uz': "❗ Sizning nickingiz juda uzun. Iltimos, qisqartiring (so‘zlar va belgilar soni jami 45 dan oshmasligi kerak).",
+                'id': "❗ Nama panggilan Anda terlalu panjang. Silakan pendekkan (jumlah kata dan simbol tidak boleh melebihi 45)."
+            }
+
+            msg = msg_texts.get(lang, msg_texts['ru'])
             bot.send_message(user_id, msg)
             return
 
-        start_content = {
-            'kz': {
-                'text': '*Сэлем!*\nМен 🤵🏻 *Мафия* ойнынын жургізуші-ботымын.\nМені чатқа қосып, әкімші етіңіз және тегін ойнай бастаңыз',
-                'add_to_group': '🤵🏽 Ботты өз чатыңа қосу',
-                'join_chat': 'Чатка кіру',
-                'news': '📰 Жаңалықтар'
-            },
-            'ru': {
-                'text': '*Привет!*\nЯ 🤵🏻 *Мафия* бот-ведущий.\nДобавьте меня в чат, сделайте администратором и начните играть бесплатно',
-                'add_to_group': '🤵🏽 Добавить бота в свой чат',
-                'join_chat': 'Войти в чат',
-                'news': '📰 Новости'
-            }
-        }
         content = start_content[lang]
         text = message.text
 
@@ -2855,6 +3198,10 @@ def start_message(message):
                             bot.send_message(user_id, "🚫 Басқа ойынға қосылып қойғансыз")
                         if lang == 'ru':
                             bot.send_message(user_id, "🚫 Вы уже зарегистрированы в другой игре")
+                        if lang == 'uz':
+                            bot.send_message(user_id, "🚫 Siz boshqa o‘yinga allaqachon qo‘shilgansiz")
+                        if lang == 'id':
+                            bot.send_message(user_id, "🚫 Anda sudah terdaftar di permainan lain")
                         return
 
                 chat = chat_list.get(game_chat_id)
@@ -2862,20 +3209,16 @@ def start_message(message):
                     try:
                         chat_member = bot.get_chat_member(game_chat_id, user_id)
                         
-                        # УЛУЧШЕННАЯ ПРОВЕРКА ПРАВ
                         can_join_game = False
-                        
                         if chat_member.status == 'creator':
                             can_join_game = True
                         elif chat_member.status == 'administrator':
                             can_join_game = True
                         elif chat_member.status == 'member':
-                            # Для обычных участников проверяем права на отправку сообщений
                             if hasattr(chat_member, 'can_send_messages'):
                                 if chat_member.can_send_messages is None or chat_member.can_send_messages:
                                     can_join_game = True
                             else:
-                                # Если атрибут не доступен, считаем что можно отправлять сообщения
                                 can_join_game = True
                         
                         if not can_join_game:
@@ -2883,6 +3226,10 @@ def start_message(message):
                                 bot.send_message(user_id, "🚫 Ойынға қосыла алмайсыз, себебі топта хабарлама жіберуге рұқсатыңыз жоқ.")
                             if lang == 'ru':
                                 bot.send_message(user_id, "🚫 Не удалось присоединиться — у вас нет прав на отправку сообщений в группе.")
+                            if lang == 'uz':
+                                bot.send_message(user_id, "🚫 O‘yinga qo‘shila olmaysiz — guruhda xabar yuborish huquqingiz yo‘q")
+                            if lang == 'id':
+                                bot.send_message(user_id, "🚫 Tidak bisa bergabung — Anda tidak memiliki izin mengirim pesan di grup")
                             return
 
                         if chat.game_running:
@@ -2890,25 +3237,35 @@ def start_message(message):
                                 bot.send_message(user_id, "🚫 Қосылу мүмкін болмады, ойын басталып кетті!")
                             if lang == 'ru':
                                 bot.send_message(user_id, "🚫 Не удалось присоединиться — игра уже началась!")
+                            if lang == 'uz':
+                                bot.send_message(user_id, "🚫 Qo‘shilolmaysiz, o‘yinning boshlangani sababli")
+                            if lang == 'id':
+                                bot.send_message(user_id, "🚫 Tidak bisa bergabung, permainan sudah dimulai")
                         elif not chat.button_id:
                             if lang == 'kz':
                                 bot.send_message(user_id, "🚫 Қосылу мүмкін болмады, ойын әлі басталмаған!")
                             if lang == 'ru':
                                 bot.send_message(user_id, "🚫 Не удалось присоединиться — игра ещё не началась!")
+                            if lang == 'uz':
+                                bot.send_message(user_id, "🚫 Qo‘shilolmaysiz, o‘yining hali boshlanmagan")
+                            if lang == 'id':
+                                bot.send_message(user_id, "🚫 Tidak bisa bergabung, permainan belum dimulai")
                         elif user_id not in chat.players:
                             full_name = f"{user_name} {user_last_name}".strip()
                             chat.players[user_id] = {'name': full_name, 'role': 'ждет', 'skipped_actions': 0}
                             user_game_registration[user_id] = game_chat_id
 
-                            if lang == 'kz':
-                                bot.send_message(user_id, f"🎲 {bot.get_chat(game_chat_id).title} чатындағы ойынға қосылдыңыз!")
-                            if lang == 'ru':
-                                bot.send_message(user_id, f"🎲 Вы присоединились к игре в чате {bot.get_chat(game_chat_id).title}!")
+                            join_button_text = {
+                                'kz': '🤵🏻 Қосылу',
+                                'ru': '🤵🏻 Присоединиться',
+                                'uz': '🤵🏻 Qo‘shilish',
+                                'id': '🤵🏻 Bergabung'
+                            }.get(lang, '🤵🏻 Присоединиться')
 
                             new_text = players_alive(chat.players, "registration", game_chat_id)
                             new_markup = types.InlineKeyboardMarkup(
                                 [[types.InlineKeyboardButton(
-                                    '🤵🏻 Қосылу' if lang == 'kz' else '🤵🏻 Присоединиться',
+                                    join_button_text,
                                     url=f'https://t.me/{bot.get_me().username}?start=join_{game_chat_id}'
                                 )]]
                             )
@@ -2929,12 +3286,20 @@ def start_message(message):
                                 bot.send_message(user_id, "✅ Ойынға қосылдыңыз! :)")
                             if lang == 'ru':
                                 bot.send_message(user_id, "✅ Вы уже присоединились к игре! :)")
+                            if lang == 'uz':
+                                bot.send_message(user_id, "✅ Siz allaqachon o‘yinga qo‘shildingiz! :)")
+                            if lang == 'id':
+                                bot.send_message(user_id, "✅ Anda sudah bergabung ke permainan! :)")
                     except Exception as e:
                         logging.error(f"Ошибка при проверке прав доступа: {e}")
                         if lang == 'kz':
                             bot.send_message(user_id, "🚫 Қосылу мүмкін болмады")
                         if lang == 'ru':
                             bot.send_message(user_id, "🚫 Не удалось присоединиться")
+                        if lang == 'uz':
+                            bot.send_message(user_id, "🚫 Qo‘shilolmadi")
+                        if lang == 'id':
+                            bot.send_message(user_id, "🚫 Gagal bergabung")
                 return
 
         bot_username = bot.get_me().username
@@ -2944,6 +3309,7 @@ def start_message(message):
         keyboard.add(types.InlineKeyboardButton(content['add_to_group'], url=add_to_group_url))
         keyboard.add(types.InlineKeyboardButton(content['join_chat'], callback_data='join_chat'))
         keyboard.add(types.InlineKeyboardButton(content['news'], url='t.me/CityMafiaNews'))
+        keyboard.add(types.InlineKeyboardButton(content['lang'], callback_data='select_language'))
 
         bot.send_message(chat_id, content['text'], reply_markup=keyboard, parse_mode="Markdown")
 
@@ -2959,6 +3325,63 @@ def start_message(message):
         if chat and not chat.game_running:
             _start_game(chat_id)
 
+
+@bot.callback_query_handler(func=lambda call: call.data == 'select_language')
+def select_language(call):
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup.add(
+        types.InlineKeyboardButton("🇰🇿 Қазақша", callback_data="set_lang_kz"),
+        types.InlineKeyboardButton("🇷🇺 Русский", callback_data="set_lang_ru"),
+        types.InlineKeyboardButton("🇺🇿 O'zbekcha", callback_data="set_lang_uz"),
+        types.InlineKeyboardButton("🇮🇩 Bahasa Indonesia", callback_data="set_lang_id")
+    )
+
+    bot.edit_message_text(
+        "🌍 *Тілді таңдаңыз / Выберите язык / Choose language*",
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=markup,
+        parse_mode="Markdown"
+    )
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("set_lang_"))
+def set_profile_language(call):
+    lang = call.data.split("_")[2]
+    user_id = call.from_user.id
+
+    # Сохраняем язык в профиле
+    profile = get_or_create_profile(user_id, call.from_user.first_name)
+    profile['language'] = lang
+
+    # Создаем клавиатуру для приветственного сообщения
+    bot_username = bot.get_me().username
+    add_to_group_url = f'https://t.me/{bot_username}?startgroup=bot_command'
+
+    keyboard = types.InlineKeyboardMarkup()
+    keyboard.add(types.InlineKeyboardButton(start_content[lang]['add_to_group'], url=add_to_group_url))
+    keyboard.add(types.InlineKeyboardButton(start_content[lang]['join_chat'], callback_data='join_chat'))
+    keyboard.add(types.InlineKeyboardButton(start_content[lang]['news'], url='t.me/CityMafiaNews'))
+    keyboard.add(types.InlineKeyboardButton(start_content[lang]['lang'], callback_data='select_language'))
+
+    # Редактируем сообщение с выбором языка
+    bot.edit_message_text(
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        text=start_content[lang]['text'],
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
+
+    # Подтверждение выбора языка
+    texts = {
+        'kz': "✅ Тіл сақталды!",
+        'ru': "✅ Язык сохранён!",
+        'uz': "✅ Til saqlandi!",
+        'id': "✅ Bahasa disimpan!"
+    }
+    bot.answer_callback_query(call.id, texts.get(lang, "✅ OK"))
+
 @bot.callback_query_handler(func=lambda call: call.data == 'join_chat')
 def join_chat_callback(call):
     user_id = call.from_user.id
@@ -2969,11 +3392,10 @@ def join_chat_callback(call):
     user_lang = profile.get('language', 'ru')
 
     # ❗ Чаты, к которым надо дать кнопку
-    #   key = chat_id группы
     chat_targets = [
-        -1002145074948,
+        -1003230376452,
         -1003411473049,
-        -1003230376452
+        -1002145074948,
         # Premium KZ
     ]
 
@@ -2982,27 +3404,25 @@ def join_chat_callback(call):
 
     for target_id in chat_targets:
         try:
-            # Получаем объект чата
             chat_info = bot.get_chat(target_id)
-
-            # Получаем название чата
             chat_title = chat_info.title
 
-            # Получаем язык этого чата
+            # язык этого чата
             chat_lang = chat_settings.get(target_id, {}).get("language", "ru")
 
-            # Проставляем флаги по языку
+            # язык -> флаг
             lang_flags = {
                 "ru": "🇷🇺",
                 "kz": "🇰🇿",
+                "uz": "🇺🇿",
+                "id": "🇮🇩",
                 "en": "🇬🇧"
             }
+
             flag = lang_flags.get(chat_lang, "🏳️")
 
-            # Получаем ссылку приглашения (бот должен быть админом!)
             invite_link = bot.export_chat_invite_link(target_id)
 
-            # Кнопка с названием группы + языком
             btn = types.InlineKeyboardButton(
                 f"{chat_title} ({flag})",
                 url=invite_link
@@ -3012,15 +3432,25 @@ def join_chat_callback(call):
         except Exception as e:
             print("Ошибка:", e)
 
-    # Текст по языку пользователя
+    # 🔥 Текст по языку пользователя
     text_by_lang = {
         'kz': "*Қол жетімді чаттар:*",
-        'ru': "*Список чатов:*"
+        'ru': "*Список чатов:*",
+        'uz': "*Mavjud chatlar:*",
+        'id': "*Daftar chat yang tersedia:*"
+    }
+
+    # 🔥 Подсказка при нажатии кнопки
+    hint_by_lang = {
+        'kz': "Чатты таңдаңыз",
+        'ru': "Выберите чат",
+        'uz': "Chatni tanlang",
+        'id': "Pilih chat"
     }
 
     bot.answer_callback_query(
         call.id,
-        "Чат таңдаңыз" if user_lang == 'kz' else "Выберите чат"
+        hint_by_lang.get(user_lang, "Выберите чат")
     )
 
     bot.send_message(
@@ -3030,7 +3460,6 @@ def join_chat_callback(call):
         parse_mode="Markdown"
     )
 
-
 def update_registration_message(game_chat_id, chat):
     with lock:  # Гарантируем, что только один поток обновляет сообщение
         new_text = players_alive(chat.players, "registration", game_chat_id)
@@ -3038,7 +3467,13 @@ def update_registration_message(game_chat_id, chat):
         lang = chat_settings.get(game_chat_id, {}).get("language", "kz")
 
         # Текст кнопки на нужном языке
-        join_text = "🤵🏻 Қосылу" if lang == 'kz' else "🤵🏻 Присоединиться"
+        join_texts = {
+            'kz': "🤵🏻 Қосылу",
+            'ru': "🤵🏻 Присоединиться",
+            'uz': "🤵🏻 Qo‘shilish",
+            'id': "🤵🏻 Bergabung"
+        }
+        join_text = join_texts.get(lang, join_texts['ru'])
 
         new_markup = types.InlineKeyboardMarkup([
             [types.InlineKeyboardButton(join_text, url=f'https://t.me/{bot.get_me().username}?start=join_{game_chat_id}')]
@@ -3102,6 +3537,8 @@ TEXTS = {
         'choose_lang': "Чат тілін таңдаңыз",
         'kazakh': "🇰🇿 Қазақша",
         'russian': "🇷🇺 Русский",
+        'uzbek': "🇺🇿 O'zbekcha",
+        'indonesian': "🇮🇩 Indonesia",
         'back': "🔙 Артқа",
         'group_only': "Бұл команданы тек топта қолдануға болады.",
         'pm_error': "Баптауларды жеке хабарламаға жіберу мүмкін емес. Бот сізге хабар жібере алатынын тексеріңіз.",
@@ -3159,6 +3596,7 @@ TEXTS = {
         'hanging_shield_enabled': "Дарға асудан қорғаныс баффы қосылды",
         'hanging_shield_disabled': "Дарға асудан қорғаныс баффы өшірілді",
         'gun_buff': "🔫 Тапанша",
+        'anonymous_vote_question': "Анонимді дауыс беру керек пе?",
         'gun_question': "Осы чатта пистолет баффын қолдануға рұқсат ету керек пе?",
         'gun_enabled': "Тапанша баффы қосылды",
         'gun_disabled': "Тапанша баффы өшірілді"
@@ -3171,11 +3609,14 @@ TEXTS = {
         'leave_cmd': "🚪 Включить/выключить /leave",
         'mafia_count': "🤵 Количество мафии",
         'times': "⏱️ Времена",
+        'anonymous_vote_question': "Хотите сделать анонимное голосование?",
         'language': "🌐 Сменить язык",
         'close': "❌ Закрыть",
         'choose_lang': "Выберите язык чата",
         'kazakh': "🇰🇿 Қазақша",
         'russian': "🇷🇺 Русский",
+        'uzbek': "🇺🇿 O'zbekcha",
+        'indonesian': "🇮🇩 Indonesia",
         'players_count': "👥 Количество игроков для старта",
         'choose_players_count': "При скольких игроках игра должна начинаться автоматически?",
         'players_count_changed': "Количество игроков изменено",
@@ -3236,6 +3677,159 @@ TEXTS = {
         'gun_question': "Разрешить использовать бафф пистолета в этом чате?",
         'gun_enabled': "Бафф пистолета включен",
         'gun_disabled': "Бафф пистолета выключен"
+    },
+
+    'uz': {
+        'settings_title': "Chat sozlamalari",
+        'pin_reg': "📌 Ro'yxatdan o'tishni mahkamlash",
+        'admin_start': "👑 Faqat admin o'yinni boshlashi",
+        'leave_cmd': "🚪 /leave buyrug'ini yoqish/o'chirish",
+        'mafia_count': "🤵 Mafiya soni",
+        'times': "⏱️ Vaqtlar",
+        'anonymous_vote_question': "Anonim ovoz berish kerakmi?",
+        'language': "🌐 Tilni o'zgartirish",
+        'close': "❌ Yopish",
+        'choose_lang': "Chat tilini tanlang",
+        'kazakh': "🇰🇿 Қазақша",
+        'russian': "🇷🇺 Русский",
+        'uzbek': "🇺🇿 O'zbekcha",
+        'indonesian': "🇮🇩 Indonesia",
+        'back': "🔙 Orqaga",
+        'group_only': "Ushbu buyruq faqat guruhda ishlatilishi mumkin.",
+        'pm_error': "Sozlamalarni shaxsiy xabarga yuborib bo'lmadi. Bot sizga xabar yubora olishini tekshiring.",
+        'lang_changed': "Chat tili o'zgartirildi!",
+        'no_rights': "Sozlamalarni o'zgartirish huquqingiz yo'q.",
+        'time_reg': "⏰ Ro'yxatdan o'tish vaqti",
+        'time_night': "🌙 Tun vaqti",
+        'time_day': "☀️ Kunduzgi vaqt",
+        'time_vote': "🗳 Ovoz berish vaqti",
+        'time_confirm': "👍🏼|👎🏼 Tasdiqlash vaqti",
+        'select_time': "Qaysi vaqtni o'zgartirmoqchisiz?",
+        'select_option': "Tanlang:",
+        'sec': "son",
+        'current_value': "Joriy qiymat:",
+        'more_mafia': "Ko'proq (1/3)",
+        'less_mafia': "Kamroq (1/4)",
+        'mafia_ratio_desc': "Mafiya sonini tanlang:\nKo'proq variantda har 3-o'yinchi,\nkamroq variantda har 4-o'yinchi mafiya bo'ladi.",
+        'pin_question': "Ro'yxatdan o'tish xabarini mahkamlash kerakmi?",
+        'leave_question': "O'yinchilarga /leave buyrug'idan foydalanishga ruxsat berilsinmi?",
+        'admin_question': "O'yinni faqat adminlar boshlashiga ruxsat berilsinmi?",
+        'yes': "Ha",
+        'no': "Yo'q",
+        'players_count': "👥 O'yin boshlanishi uchun o'yinchilar soni",
+        'choose_players_count': "Necha o'yinchi yig'ilganda o'yin avtomatik boshlansin?",
+        'players_count_changed': "O'yinchilar soni o'zgartirildi",
+        'menu_closed': "Menyu yopildi.",
+        'time_changed': "Vaqt o'zgartirildi",
+        'registration_time_changed': "Ro'yxatdan o'tish vaqti o'zgartirildi",
+        'night_time_changed': "Tun vaqti o'zgartirildi",
+        'day_time_changed': "Kunduzgi vaqt o'zgartirildi",
+        'voting_time_changed': "Ovoz berish vaqti o'zgartirildi",
+        'confirmation_time_changed': "Tasdiqlash vaqti o'zgartirildi",
+        'pin_enabled': "Ro'yxatdan o'tishni mahkamlash yoqildi",
+        'pin_disabled': "Ro'yxatdan o'tishni mahkamlash o'chirildi",
+        'leave_enabled': "/leave buyrug'i yoqildi",
+        'leave_disabled': "/leave buyrug'i o'chirildi",
+        'admin_only_enabled': "Faqat admin o'yinni boshlay oladi",
+        'admin_only_disabled': "Har kim o'yinni boshlay oladi",
+        'mafia_ratio_changed': "Mafiya soni o'zgartirildi",
+        'anonymous_vote': "😶‍🌫️ Anonim ovoz berish",
+        'anon_vote_enabled': "Anonim ovoz berish yoqildi",
+        'anon_vote_disabled': "Anonim ovoz berish o'chirildi",
+        'buffs': "Bufflar",
+        'choose_buff': "O'zgartirmoqchi bo'lgan buffingizni tanlang:",
+        'shield_buff': "⚔️ Qalqon",
+        'shield_question': "Ushbu chatda Qalqon buffidan foydalanishga ruxsat berilsinmi?",
+        'shield_enabled': "Qalqon buffi yoqildi",
+        'shield_disabled': "Qalqon buffi o'chirildi",
+        'docs_buff': "📂 Soxta hujjatlar",
+        'docs_question': "Ushbu chatda soxta hujjatlar buffidan foydalanishga ruxsat berilsinmi?",
+        'docs_enabled': "Soxta hujjatlar buffi yoqildi",
+        'docs_disabled': "Soxta hujjatlar buffi o'chirildi",
+        'hanging_shield_buff': "⚖️ Osilishdan himoya",
+        'hanging_shield_question': "Ushbu chatda osilishdan himoya buffidan foydalanishga ruxsat berilsinmi?",
+        'hanging_shield_enabled': "Osilishdan himoya buffi yoqildi",
+        'hanging_shield_disabled': "Osilishdan himoya buffi o'chirildi",
+        'gun_buff': "🔫 Pistol",
+        'gun_question': "Ushbu chatda pistol buffidan foydalanishga ruxsat berilsinmi?",
+        'gun_enabled': "Pistol buffi yoqildi",
+        'gun_disabled': "Pistol buffi o'chirildi"
+    },
+
+    'id': {
+        'settings_title': "Pengaturan Chat",
+        'pin_reg': "📌 Sematkan pendaftaran",
+        'admin_start': "👑 Hanya admin yang memulai permainan",
+        'leave_cmd': "🚪 Aktifkan/nonaktifkan /leave",
+        'mafia_count': "🤵 Jumlah mafia",
+        'times': "⏱️ Waktu",
+        'language': "🌐 Ubah bahasa",
+        'close': "❌ Tutup",
+        'choose_lang': "Pilih bahasa chat",
+        'kazakh': "🇰🇿 Қазақша",
+        'russian': "🇷🇺 Русский",
+        'uzbek': "🇺🇿 O'zbekcha",
+        'indonesian': "🇮🇩 Indonesia",
+        'back': "🔙 Kembali",
+        'group_only': "Perintah ini hanya bisa digunakan di grup.",
+        'pm_error': "Tidak dapat mengirim pengaturan ke pesan pribadi. Pastikan bot dapat mengirim pesan kepada Anda.",
+        'lang_changed': "Bahasa chat telah diubah!",
+        'no_rights': "Anda tidak memiliki izin untuk mengubah pengaturan.",
+        'time_reg': "⏰ Waktu pendaftaran",
+        'time_night': "🌙 Waktu malam",
+        'time_day': "☀️ Waktu siang",
+        'time_vote': "🗳 Waktu pemungutan suara",
+        'time_confirm': "👍🏼|👎🏼 Waktu konfirmasi",
+        'select_time': "Pilih waktu mana yang ingin diubah:",
+        'select_option': "Pilih:",
+        'sec': "detik",
+        'current_value': "Nilai saat ini:",
+        'more_mafia': "Lebih banyak (1/3)",
+        'less_mafia': "Lebih sedikit (1/4)",
+        'mafia_ratio_desc': "Pilih jumlah mafia:\nLebih banyak - setiap pemain ke-3,\nLebih sedikit - setiap pemain ke-4 akan menjadi mafia.",
+        'pin_question': "Sematkan pesan saat pendaftaran?",
+        'leave_question': "Izinkan pemain menggunakan /leave?",
+        'admin_question': "Izinkan hanya admin yang memulai permainan?",
+        'yes': "Ya",
+        'no': "Tidak",
+        'players_count': "👥 Jumlah pemain untuk memulai",
+        'choose_players_count': "Berapa banyak pemain yang harus berkumpul agar permainan dimulai otomatis?",
+        'players_count_changed': "Jumlah pemain telah diubah",
+        'menu_closed': "Menu ditutup.",
+        'time_changed': "Waktu diubah",
+        'registration_time_changed': "Waktu pendaftaran diubah",
+        'night_time_changed': "Waktu malam diubah",
+        'day_time_changed': "Waktu siang diubah",
+        'voting_time_changed': "Waktu pemungutan suara diubah",
+        'confirmation_time_changed': "Waktu konfirmasi diubah",
+        'pin_enabled': "Penyematan pendaftaran diaktifkan",
+        'pin_disabled': "Penyematan pendaftaran dinonaktifkan",
+        'leave_enabled': "Perintah /leave diaktifkan",
+        'leave_disabled': "Perintah /leave dinonaktifkan",
+        'admin_only_enabled': "Hanya admin yang dapat memulai permainan",
+        'admin_only_disabled': "Siapa saja dapat memulai permainan",
+        'mafia_ratio_changed': "Jumlah mafia diubah",
+        'anonymous_vote': "😶‍🌫️ Pemungutan suara anonim",
+        'anon_vote_enabled': "Pemungutan suara anonim diaktifkan",
+        'anon_vote_disabled': "Pemungutan suara anonim dinonaktifkan",
+        'buffs': "Buff",
+        'choose_buff': "Pilih buff yang ingin diubah:",
+        'shield_buff': "⚔️ Perisai",
+        'shield_question': "Izinkan penggunaan buff perisai di chat ini?",
+        'shield_enabled': "Buff perisai diaktifkan",
+        'shield_disabled': "Buff perisai dinonaktifkan",
+        'docs_buff': "📂 Dokumen palsu",
+        'docs_question': "Izinkan penggunaan buff dokumen palsu di chat ini?",
+        'docs_enabled': "Buff dokumen palsu diaktifkan",
+        'docs_disabled': "Buff dokumen palsu dinonaktifkan",
+        'hanging_shield_buff': "⚖️ Perlindungan dari gantung",
+        'hanging_shield_question': "Izinkan penggunaan buff perlindungan dari gantung di chat ini?",
+        'hanging_shield_enabled': "Buff perlindungan dari gantung diaktifkan",
+        'hanging_shield_disabled': "Buff perlindungan dari gantung dinonaktifkan",
+        'gun_buff': "🔫 Pistol",
+        'gun_question': "Izinkan penggunaan buff pistol di chat ini?",
+        'gun_enabled': "Buff pistol diaktifkan",
+        'gun_disabled': "Buff pistol dinonaktifkan"
     }
 }
 
@@ -3314,6 +3908,12 @@ def handle_chat_language_menu(call):
         types.InlineKeyboardButton(f"{'▪️' if lang == 'ru' else '▫️'} {get_text(chat_id, 'russian')}",
                                  callback_data=f"set_chat_lang_ru_{chat_id}")
     )
+    markup.add(
+        types.InlineKeyboardButton(f"{'▪️' if lang == 'uz' else '▫️'} {get_text(chat_id, 'uzbek')}",
+                                 callback_data=f"set_chat_lang_uz_{chat_id}"),
+        types.InlineKeyboardButton(f"{'▪️' if lang == 'id' else '▫️'} {get_text(chat_id, 'indonesian')}",
+                                 callback_data=f"set_chat_lang_id_{chat_id}")
+    )
     markup.add(types.InlineKeyboardButton(get_text(chat_id, 'back'), callback_data=f"main_menu_{chat_id}"))
     
     bot.edit_message_text(get_text(chat_id, 'choose_lang'),
@@ -3323,8 +3923,9 @@ def handle_chat_language_menu(call):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("set_chat_lang_"))
 def set_chat_language(call):
-    lang = call.data.split("_")[3]
-    chat_id = int(call.data.split("_")[-1])
+    parts = call.data.split("_")
+    lang = parts[3]  # kz, ru, uz, id
+    chat_id = int(parts[-1])
     
     if chat_id not in chat_settings:
         chat_settings[chat_id] = {}
@@ -3385,7 +3986,7 @@ def open_anon_vote_menu(call):
     bot.edit_message_text(
         chat_id=user_id,
         message_id=call.message.message_id,
-        text="Хотите сделать анонимное голосование?" if chat_settings[chat_id].get("language","ru")=="ru" else "Анонимді дауыс беру керек пе?",
+        text=get_text(chat_id, 'anonymous_vote_question'),  # Добавьте этот ключ в словарь TEXTS
         reply_markup=markup
     )
     bot.answer_callback_query(call.id)
@@ -4493,45 +5094,86 @@ def show_profile(message, user_id, message_id=None, user_name=None):
 
     # Тексты на разных языках
     texts = {
-        'kz': {
-            'profile': f"*Бейініңіз*\n\n"
-                       f"👤 {escape_markdown(user_name)}\n"
-                       f"🪪 ID: `{user_id}`\n\n"
-                       f"💶 Еуро: {escape_markdown(str(profile['euro']))}\n"
-                       f"🪙 Тиын: {escape_markdown(str(profile['coins']))}\n\n"
-                       f"⚔️ Қорғаныс: {escape_markdown(str(profile['shield']))}\n"
-                       f"📁 Құжат: {escape_markdown(str(profile['fake_docs']))}\n"
-                       f"🔫 Тапанша: {escape_markdown(str(profile['gun']))}\n"
-                       f"⚖️ Дарға қарсы қорғаныс: {escape_markdown(str(profile.get('hanging_shield', 0)))}\n\n"
-                       f"👑 VIP-дәреже: {vip_status}",
-            'buttons': {
-                'shop': "🛒 Дүкен",
-                'buy_coins': "Сатып алу 🪙",
-                'exchange': "💰 Алмастыру",
-                'settings': "⚙️ Баптаулар",
-                'djekpot': "🎰 Джекпот"
-            }
-        },
-        'ru': {
-            'profile': f"*Ваш профиль*\n\n"
-                       f"👤 {escape_markdown(user_name)}\n"
-                       f"🪪 ID: `{user_id}`\n\n"
-                       f"💶 Евро: {escape_markdown(str(profile['euro']))}\n"
-                       f"🪙 Монеты: {escape_markdown(str(profile['coins']))}\n\n"
-                       f"⚔️ Защита: {escape_markdown(str(profile['shield']))}\n"
-                       f"📁 Документы: {escape_markdown(str(profile['fake_docs']))}\n"
-                       f"🔫 Пистолет: {escape_markdown(str(profile['gun']))}\n"
-                       f"⚖️ Защита от повешения: {escape_markdown(str(profile.get('hanging_shield', 0)))}\n\n"
-                       f"👑 VIP-статус: {vip_status}",
-            'buttons': {
-                'shop': "🛒 Магазин",
-                'buy_coins': "Купить 🪙",
-                'exchange': "💰 Обмен",
-                'settings': "⚙️ Настройки",
-                'djekpot': "🎰 Джекпот"
-            }
+    'kz': {
+        'profile': f"*Бейініңіз*\n\n"
+                   f"👤 {escape_markdown(user_name)}\n"
+                   f"🪪 ID: `{user_id}`\n\n"
+                   f"💶 Еуро: {escape_markdown(str(profile['euro']))}\n"
+                   f"🪙 Тиын: {escape_markdown(str(profile['coins']))}\n\n"
+                   f"⚔️ Қорғаныс: {escape_markdown(str(profile['shield']))}\n"
+                   f"📁 Құжат: {escape_markdown(str(profile['fake_docs']))}\n"
+                   f"🔫 Тапанша: {escape_markdown(str(profile['gun']))}\n"
+                   f"⚖️ Дарға қарсы қорғаныс: {escape_markdown(str(profile.get('hanging_shield', 0)))}\n\n"
+                   f"👑 VIP-дәреже: {vip_status}",
+        'buttons': {
+            'shop': "🛒 Дүкен",
+            'buy_coins': "Сатып алу 🪙",
+            'exchange': "💰 Алмастыру",
+            'settings': "⚙️ Баптаулар",
+            'djekpot': "🎰 Джекпот"
+        }
+    },
+
+    'ru': {
+        'profile': f"*Ваш профиль*\n\n"
+                   f"👤 {escape_markdown(user_name)}\n"
+                   f"🪪 ID: `{user_id}`\n\n"
+                   f"💶 Евро: {escape_markdown(str(profile['euro']))}\n"
+                   f"🪙 Монеты: {escape_markdown(str(profile['coins']))}\n\n"
+                   f"⚔️ Защита: {escape_markdown(str(profile['shield']))}\n"
+                   f"📁 Документы: {escape_markdown(str(profile['fake_docs']))}\n"
+                   f"🔫 Пистолет: {escape_markdown(str(profile['gun']))}\n"
+                   f"⚖️ Защита от повешения: {escape_markdown(str(profile.get('hanging_shield', 0)))}\n\n"
+                   f"👑 VIP-статус: {vip_status}",
+        'buttons': {
+            'shop': "🛒 Магазин",
+            'buy_coins': "Купить 🪙",
+            'exchange': "💰 Обмен",
+            'settings': "⚙️ Настройки",
+            'djekpot': "🎰 Джекпот"
+        }
+    },
+
+    'uz': {
+        'profile': f"*Profilingiz*\n\n"
+                   f"👤 {escape_markdown(user_name)}\n"
+                   f"🪪 ID: `{user_id}`\n\n"
+                   f"💶 Yevro: {escape_markdown(str(profile['euro']))}\n"
+                   f"🪙 Tanga: {escape_markdown(str(profile['coins']))}\n\n"
+                   f"⚔️ Himoya: {escape_markdown(str(profile['shield']))}\n"
+                   f"📁 Soxta hujjat: {escape_markdown(str(profile['fake_docs']))}\n"
+                   f"🔫 To‘pponcha: {escape_markdown(str(profile['gun']))}\n"
+                   f"⚖️ Osilishdan himoya: {escape_markdown(str(profile.get('hanging_shield', 0)))}\n\n"
+                   f"👑 VIP: {vip_status}",
+        'buttons': {
+            'shop': "🛒 Do‘kon",
+            'buy_coins': "🪙 Tanga sotib olish",
+            'exchange': "💰 Almashish",
+            'settings': "⚙️ Sozlamalar",
+            'djekpot': "🎰 Jekpot"
+        }
+    },
+
+    'id': {
+        'profile': f"*Profil Anda*\n\n"
+                   f"👤 {escape_markdown(user_name)}\n"
+                   f"🪪 ID: `{user_id}`\n\n"
+                   f"💶 Euro: {escape_markdown(str(profile['euro']))}\n"
+                   f"🪙 Koin: {escape_markdown(str(profile['coins']))}\n\n"
+                   f"⚔️ Perlindungan: {escape_markdown(str(profile['shield']))}\n"
+                   f"📁 Dokumen palsu: {escape_markdown(str(profile['fake_docs']))}\n"
+                   f"🔫 Pistol: {escape_markdown(str(profile['gun']))}\n"
+                   f"⚖️ Perlindungan dari hukuman gantung: {escape_markdown(str(profile.get('hanging_shield', 0)))}\n\n"
+                   f"👑 VIP: {vip_status}",
+        'buttons': {
+            'shop': "🛒 Toko",
+            'buy_coins': "Beli Koin 🪙",
+            'exchange': "💰 Tukar",
+            'settings': "⚙️ Pengaturan",
+            'djekpot': "🎰 Jackpot"
         }
     }
+}
 
     # Создаем клавиатуру
     markup = types.InlineKeyboardMarkup(row_width=2)
@@ -4574,6 +5216,16 @@ def handle_djekpot_info(call):
             'spin': "Крутить за 2 🪙",
             'back': "🔙 Назад"
         },
+        'uz': {
+    'info': "🎰 *Jekpot*\n\n2 tanga to‘lang va tasodifiy sovrin yutib oling:",
+    'spin': "2 🪙 aylantirish",
+    'back': "🔙 Orqaga"
+},
+'id': {
+    'info': "🎰 *Jackpot*\n\nBayar 2 koin dan dapatkan hadiah acak:",
+    'spin': "Putar 2 🪙",
+    'back': "🔙 Kembali"
+},
         'kz': {
             'info': "🎰 *Джекпот*\n\n"
                     "2 монета төлеп, кездейсоқ сыйлықты ұтып алыңыз:\n"
@@ -4636,6 +5288,24 @@ def roll_jackpot(profile, lang):
             'gun': '🔫 Пистолет',
             'hanging_shield': '⚖️ Защита от повешения'
         },
+        'uz': {
+    'vip': '👑 VIP',
+    'coins': '🪙 Tanga',
+    'euro': '💶 Yevro',
+    'shield': '⚔️ Himoya',
+    'fake_docs': '📁 Hujjat',
+    'gun': '🔫 To‘pponcha',
+    'hanging_shield': '⚖️ O‘ldirilishdan himoya'
+},
+'id': {
+    'vip': '👑 VIP',
+    'coins': '🪙 Koin',
+    'euro': '💶 Euro',
+    'shield': '⚔️ Perlindungan',
+    'fake_docs': '📁 Dokumen',
+    'gun': '🔫 Pistol',
+    'hanging_shield': '⚖️ Perlindungan gantung'
+},
         'kz': {
             'vip': '👑 VIP',
             'coins': '🪙 Монета',
@@ -4675,15 +5345,23 @@ def handle_spin_jackpot(call):
     lang = profile.get('language', 'ru')
 
     texts = {
-        'ru': {
-            'no_coins': "❌ У вас недостаточно монет",
-            'win': "🎰 Вы выиграли: {}!"
-        },
-        'kz': {
-            'no_coins': "❌ Монета жеткіліксіз",
-            'win': "🎰 Сіз ұтып алдыңыз: {}!"
-        }
+    'ru': {
+        'no_coins': "❌ У вас недостаточно монет",
+        'win': "🎰 Вы выиграли: {}!"
+    },
+    'kz': {
+        'no_coins': "❌ Монета жеткіліксіз",
+        'win': "🎰 Сіз ұтып алдыңыз: {}!"
+    },
+    'uz': {
+        'no_coins': "❌ Sizda yetarli tanga yo‘q",
+        'win': "🎰 Siz yutdingiz: {}!"
+    },
+    'id': {
+        'no_coins': "❌ Koin Anda tidak cukup",
+        'win': "🎰 Anda memenangkan: {}!"
     }
+}
 
     if profile['coins'] < 2:
         bot.answer_callback_query(call.id, texts[lang]['no_coins'], show_alert=True)
@@ -4716,6 +5394,22 @@ def handle_settings(call):
             'language': f"🌐 Тіл: {'🇰🇿 Қазақша' if lang == 'kz' else '🇷🇺 Орысша'}",
             'back': "🔙 Артқа"
         },
+        'uz': {
+    'title': "⚙️ *Sozlamalar*",
+    'shield': f"⚔️ Himoya {'🟢 ON' if profile.get('shield_active', True) else '🔴 OFF'}",
+    'docs': f"📁 Hujjat {'🟢 ON' if profile.get('docs_active', True) else '🔴 OFF'}",
+    'hanging': f"⚖️ Himoya {'🟢 ON' if profile.get('hanging_shield_active', True) else '🔴 OFF'}",
+    'language': f"🌐 Til: O‘zbek 🇺🇿",
+    'back': "🔙 Orqaga"
+},
+'id': {
+    'title': "⚙️ *Pengaturan*",
+    'shield': f"⚔️ Perlindungan {'🟢 ON' if profile.get('shield_active', True) else '🔴 OFF'}",
+    'docs': f"📁 Dokumen {'🟢 ON' if profile.get('docs_active', True) else '🔴 OFF'}",
+    'hanging': f"⚖️ Perlindungan gantung {'🟢 ON' if profile.get('hanging_shield_active', True) else '🔴 OFF'}",
+    'language': f"🌐 Bahasa: Indonesia 🇮🇩",
+    'back': "🔙 Kembali"
+},
         'ru': {
             'title': "⚙️ *Настройки*",
             'shield': f"⚔️ Защита {'🟢 ON' if profile.get('shield_active', True) else '🔴 OFF'}",
@@ -4747,25 +5441,48 @@ def handle_change_language(call):
     markup = types.InlineKeyboardMarkup(row_width=2)
     markup.add(
         types.InlineKeyboardButton("🇷🇺 Русский", callback_data="set_lang_ru"),
-        types.InlineKeyboardButton("🇰🇿 Қазақша", callback_data="set_lang_kz")
+        types.InlineKeyboardButton("🇰🇿 Қазақша", callback_data="set_lang_kz"),
+        types.InlineKeyboardButton("🇺🇿 O‘zbek", callback_data="set_lang_uz"),
+        types.InlineKeyboardButton("🇮🇩 Indonesia", callback_data="set_lang_id"),
     )
-    markup.add(types.InlineKeyboardButton("🔙 Назад" if lang == 'ru' else "🔙 Артқа", callback_data="back_to_settings"))
 
-    bot.edit_message_text("🌐 Тілді таңдаңыз / Выберите язык", 
-                          chat_id=call.message.chat.id, 
-                          message_id=call.message.message_id,
-                          reply_markup=markup)
+    back_text = {
+        'ru': "🔙 Назад",
+        'kz': "🔙 Артқа",
+        'uz': "🔙 Orqaga",
+        'id': "🔙 Kembali"
+    }.get(lang, "🔙 Назад")
+
+    markup.add(types.InlineKeyboardButton(back_text, callback_data="back_to_settings"))
+
+    bot.edit_message_text(
+        "🌐 Тілді таңдаңыз / Выберите язык / Tilni tanlang / Pilih bahasa",
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        reply_markup=markup
+    )
     bot.answer_callback_query(call.id)
 
-@bot.callback_query_handler(func=lambda call: call.data in ['set_lang_ru', 'set_lang_kz'])
+
+# 🔥 Добавляем поддержку всех 4 языков
+@bot.callback_query_handler(func=lambda call: call.data in [
+    'set_lang_ru', 'set_lang_kz', 'set_lang_uz', 'set_lang_id'
+])
 def handle_set_language(call):
     user_id = call.from_user.id
     profile = get_or_create_profile(user_id, call.from_user.first_name)
 
-    new_lang = 'ru' if call.data == 'set_lang_ru' else 'kz'
+    mapping = {
+        'set_lang_ru': ('ru', "Язык изменен на 🇷🇺 русский"),
+        'set_lang_kz': ('kz', "Тіл 🇰🇿 қазақ тіліне ауыстырылды"),
+        'set_lang_uz': ('uz', "Til 🇺🇿 o‘zbek tiliga o‘zgartirildi"),
+        'set_lang_id': ('id', "Bahasa telah diubah ke 🇮🇩 Indonesia"),
+    }
+
+    new_lang, text = mapping[call.data]
     profile['language'] = new_lang
 
-    bot.answer_callback_query(call.id, f"Язык изменен на {'русский' if new_lang == 'ru' else 'қазақша'}")
+    bot.answer_callback_query(call.id, text)
 
     # Возвращаемся в настройки
     handle_settings(call)
@@ -4859,6 +5576,62 @@ def handle_shop_actions(call):
                 'hanging': "✅ Сатып алу сәтті аяқталды",
                 'vip_bought': "👑 VIP дәрежесі 7 күнге іске қосылды!",
                 'vip_renewed': "👑 VIP мәртебеңіз 7 күнге ұзартылды!"
+            }
+        },
+                'uz': {
+            'shop_title': "🛒 *Do‘kon*",
+            'balance': f"💶 _Yevro_: {escape_markdown(str(profile['euro']))}\n🪙 _Tanga_: {escape_markdown(str(profile['coins']))}",
+            'shield_desc': "⚔️ *Himoya*\nKimdir sizga hujum qilsa, qalqon sizni bir marta himoya qiladi.",
+            'docs_desc': "📁 *Hujjat*\nKomissarga qarshi rollar uchun (Don, Mafia va boshqalar). Komissar sizni tekshirsa — sizni oddiy o‘yinchi sifatida ko‘radi.",
+            'hanging_desc': "⚖️ *O‘ldirilishdan himoya*\nSizni dor ostida o‘ldirilishdan saqlaydi. Hatto hamma sizga qarshi bo‘lsa ham — sizni osib bo‘lmaydi!",
+            'gun_desc': "🔫 *To‘pponcha*\nTunda istalgan o‘yinchini o‘ldirish imkonini beradi.",
+            'vip_desc': "👑 *7 kunlik VIP maqom*\nVIP olganingizdan so‘ng:\n- Har g‘alaba uchun 💶 15\n- Har mag‘lubiyat uchun 💶 10 bonus\n- Ismingiz yonida 👑 belgisi bo‘ladi\n- Faqat VIP uchun 🔫 To‘pponcha mavjud\n- 🪽 Qalqonni o‘yinda 2 marta ishlatish mumkin",
+            'buttons': {
+                'shield': "⚔️ Himoya - 💶 100",
+                'docs': "📁 Hujjat - 💶 150",
+                'gun': "🔫 To‘pponcha - 💶 600",
+                'hanging': "⚖️ Dor dan himoya - 🪙 1",
+                'buy_vip': "👑 VIP sotib olish - 7 🪙",
+                'renew_vip': "👑 VIP uzaytirish - 4 🪙",
+                'back': "🔙 Orqaga"
+            },
+            'purchase': {
+                'success': "✅ Xarid muvaffaqiyatli amalga oshirildi",
+                'no_money': "❌ Xarid qilish uchun mablag‘ yetarli emas",
+                'vip_only': "❌ Bu faqat VIP uchun!",
+                'shield': "✅ Himoya sotib olindi",
+                'docs': "✅ Hujjat sotib olindi",
+                'hanging': "✅ Himoya sotib olindi",
+                'vip_bought': "👑 VIP maqomi 7 kunga yoqildi!",
+                'vip_renewed': "👑 VIP maqomi 7 kunga uzaytirildi!"
+            }
+        },
+                'id': {
+            'shop_title': "🛒 *Toko*",
+            'balance': f"💶 _Euro_: {escape_markdown(str(profile['euro']))}\n🪙 _Koin_: {escape_markdown(str(profile['coins']))}",
+            'shield_desc': "⚔️ *Perlindungan*\nJika seseorang menyerang Anda, perisai dapat menyelamatkan Anda satu kali.",
+            'docs_desc': "📁 *Dokumen*\nUntuk peran melawan komisaris (Don, Mafia, dll). Jika komisaris memeriksa Anda — Anda terlihat seperti warga biasa.",
+            'hanging_desc': "⚖️ *Perlindungan gantung*\nMelindungi Anda dari hukuman gantung. Bahkan jika semua orang memilih Anda — Anda tidak bisa digantung!",
+            'gun_desc': "🔫 *Pistol*\nMemungkinkan Anda membunuh pemain mana pun pada malam hari.",
+            'vip_desc': "👑 *VIP 7 hari*\nDengan VIP:\n– Mendapatkan 💶 15 untuk kemenangan\n– Mendapatkan 💶 10 untuk kekalahan\n– Ikon 👑 muncul di samping nama Anda\n– Hanya VIP yang dapat membeli 🔫 Pistol\n– 🪽 Perisai dapat digunakan 2 kali dalam satu permainan",
+            'buttons': {
+                'shield': "⚔️ Perlindungan - 💶 100",
+                'docs': "📁 Dokumen - 💶 150",
+                'gun': "🔫 Pistol - 💶 600",
+                'hanging': "⚖️ Anti-gantung - 🪙 1",
+                'buy_vip': "👑 Beli VIP - 7 🪙",
+                'renew_vip': "👑 Perpanjang VIP - 4 🪙",
+                'back': "🔙 Kembali"
+            },
+            'purchase': {
+                'success': "✅ Pembelian berhasil",
+                'no_money': "❌ Tidak cukup koin untuk membeli",
+                'vip_only': "❌ Khusus untuk VIP!",
+                'shield': "✅ Pembelian berhasil",
+                'docs': "✅ Pembelian berhasil",
+                'hanging': "✅ Pembelian berhasil",
+                'vip_bought': "👑 VIP aktif selama 7 hari!",
+                'vip_renewed': "👑 VIP diperpanjang selama 7 hari!"
             }
         },
         'ru': {
@@ -5000,37 +5773,68 @@ def handle_exchange(call):
     lang = profile.get('language', 'ru')
 
     texts = {
-        'kz': {
-            'title': "💰 *Алмастыру*",
-            'balance': f"💶 _Еуро_: {profile['euro']}\n🪙 _Тиын_: {profile['coins']}",
-            'choose': "Алмастыру опциясын таңдаңыз:",
-            'success': "✅ Алмастыру сәтті өтті!",
-            'no_coins': "❌ Тиын жеткіліксіз!",
-            'rates': [
-                ("1🪙 → 150💶", "exchange_1"),
-                ("2🪙 → 300💶", "exchange_2"),
-                ("5🪙 → 750💶", "exchange_5"),
-                ("10🪙 → 1500💶", "exchange_10")
-            ],
-            'back': "🔙 Артқа"
-        },
-        'ru': {
-            'title': "💰 *Обмен*",
-            'balance': f"💶 _Евро_: {profile['euro']}\n🪙 _Монеты_: {profile['coins']}",
-            'choose': "Выберите вариант обмена:",
-            'success': "✅ Обмен успешно завершен!",
-            'no_coins': "❌ Недостаточно монет!",
-            'rates': [
-                ("1🪙 → 150💶", "exchange_1"),
-                ("2🪙 → 300💶", "exchange_2"),
-                ("5🪙 → 750💶", "exchange_5"),
-                ("10🪙 → 1500💶", "exchange_10")
-            ],
-            'back': "🔙 Назад"
-        }
-    }
+    'kz': {
+        'title': "💰 *Алмастыру*",
+        'balance': f"💶 _Еуро_: {profile['euro']}\n🪙 _Тиын_: {profile['coins']}",
+        'choose': "Алмастыру опциясын таңдаңыз:",
+        'success': "✅ Алмастыру сәтті өтті!",
+        'no_coins': "❌ Тиын жеткіліксіз!",
+        'rates': [
+            ("1🪙 → 150💶", "exchange_1"),
+            ("2🪙 → 300💶", "exchange_2"),
+            ("5🪙 → 750💶", "exchange_5"),
+            ("10🪙 → 1500💶", "exchange_10")
+        ],
+        'back': "🔙 Артқа"
+    },
 
-    t = texts[lang]
+    'ru': {
+        'title': "💰 *Обмен*",
+        'balance': f"💶 _Евро_: {profile['euro']}\n🪙 _Монеты_: {profile['coins']}",
+        'choose': "Выберите вариант обмена:",
+        'success': "✅ Обмен успешно завершен!",
+        'no_coins': "❌ Недостаточно монет!",
+        'rates': [
+            ("1🪙 → 150💶", "exchange_1"),
+            ("2🪙 → 300💶", "exchange_2"),
+            ("5🪙 → 750💶", "exchange_5"),
+            ("10🪙 → 1500💶", "exchange_10")
+        ],
+        'back': "🔙 Назад"
+    },
+
+    'uz': {
+        'title': "💰 *Almashuv*",
+        'balance': f"💶 _Yevro_: {profile['euro']}\n🪙 _Tanga_: {profile['coins']}",
+        'choose': "Almashuv variantini tanlang:",
+        'success': "✅ Almashuv muvaffaqiyatli yakunlandi!",
+        'no_coins': "❌ Tangalar yetarli emas!",
+        'rates': [
+            ("1🪙 → 150💶", "exchange_1"),
+            ("2🪙 → 300💶", "exchange_2"),
+            ("5🪙 → 750💶", "exchange_5"),
+            ("10🪙 → 1500💶", "exchange_10")
+        ],
+        'back': "🔙 Orqaga"
+    },
+
+    'id': {
+        'title': "💰 *Tukar*",
+        'balance': f"💶 _Euro_: {profile['euro']}\n🪙 _Koin_: {profile['coins']}",
+        'choose': "Pilih opsi penukaran:",
+        'success': "✅ Penukaran berhasil!",
+        'no_coins': "❌ Koin tidak cukup!",
+        'rates': [
+            ("1🪙 → 150💶", "exchange_1"),
+            ("2🪙 → 300💶", "exchange_2"),
+            ("5🪙 → 750💶", "exchange_5"),
+            ("10🪙 → 1500💶", "exchange_10")
+        ],
+        'back': "🔙 Kembali"
+    }
+}
+
+    t = texts.get(lang, texts['ru'])
     exchange_rates = {
         'exchange_1': (1, 150),
         'exchange_2': (2, 300),
@@ -5061,6 +5865,7 @@ def handle_exchange(call):
         else:
             bot.answer_callback_query(call.id, t['no_coins'], show_alert=True)
 
+
 @bot.callback_query_handler(func=lambda call: call.data == 'buy_coins')
 def handle_buy_coins(call):
     user_id = call.from_user.id
@@ -5081,10 +5886,24 @@ def handle_buy_coins(call):
             'card': "💳 Оплата картой",
             'stars': "⭐️ Telegram Stars",
             'back': "🔙 Назад"
+        },
+        'uz': {
+            'title': "💰 *Tiyin sotib olish*",
+            'choose': "To‘lov usulini tanlang:",
+            'card': "💳 Karta orqali to‘lash",
+            'stars': "⭐️ Telegram Stars",
+            'back': "🔙 Orqaga"
+        },
+        'id': {
+            'title': "💰 *Beli Koin*",
+            'choose': "Pilih metode pembayaran:",
+            'card': "💳 Bayar dengan kartu",
+            'stars': "⭐️ Telegram Stars",
+            'back': "🔙 Kembali"
         }
     }
 
-    t = texts[lang]
+    t = texts.get(lang, texts['ru'])
 
     bot.answer_callback_query(call.id)
     markup = types.InlineKeyboardMarkup()
@@ -5106,6 +5925,7 @@ def handle_buy_coins(call):
         parse_mode="Markdown"
     )
 
+
 @bot.callback_query_handler(func=lambda call: call.data == 'pay_with_card')
 def handle_card_payment(call):
     user_id = call.from_user.id
@@ -5114,8 +5934,8 @@ def handle_card_payment(call):
 
     texts = {
         'kz': {
-            'title': "💳 *Қартымен төлеу*",
-            'text': "🌍 *Төлемдерді қолмен қабылдаймыз*\nҚазір біз қолдау чаты арқылы төлемді қабылдай аламыз.",
+            'title': "💳 *Картамен төлеу*",
+            'text': "🌍 *Төлемдерді қолмен қабылдаймыз*\nҚазір біз төлемдерді қолдау чаты арқылы қабылдай аламыз.",
             'pay': "Төлем жасау",
             'back': "🔙 Артқа"
         },
@@ -5124,12 +5944,25 @@ def handle_card_payment(call):
             'text': "🌍 *Принимаем платежи вручную*\nСейчас мы можем принимать платежи через чат поддержки.",
             'pay': "Сделать платеж",
             'back': "🔙 Назад"
+        },
+        'uz': {
+            'title': "💳 *Karta orqali to‘lov*",
+            'text': "🌍 *To‘lovlar qo‘lda qabul qilinadi*\nHozirda biz to‘lovlarni qo‘llab-quvvatlash chati orqali qabul qilamiz.",
+            'pay': "To‘lov qilish",
+            'back': "🔙 Orqaga"
+        },
+        'id': {
+            'title': "💳 *Pembayaran dengan kartu*",
+            'text': "🌍 *Pembayaran diproses secara manual*\nSaat ini kami menerima pembayaran melalui chat dukungan.",
+            'pay': "Lakukan pembayaran",
+            'back': "🔙 Kembali"
         }
     }
 
-    t = texts[lang]
+    t = texts.get(lang, texts['ru'])
 
     bot.answer_callback_query(call.id)
+
     markup = types.InlineKeyboardMarkup()
     markup.add(
         types.InlineKeyboardButton(t['pay'], url="https://t.me/CityMafiaSupport")
@@ -5146,11 +5979,10 @@ def handle_card_payment(call):
         parse_mode="Markdown"
     )
 
-
-
 @bot.callback_query_handler(func=lambda call: call.data == 'pay_with_stars')
 def show_stars_options(call):
     bot.answer_callback_query(call.id)
+
     rates = [
         ("1 🪙 → 20 ⭐️", 1, 20),
         ("2 🪙 → 40 ⭐️", 2, 40),
@@ -5161,18 +5993,29 @@ def show_stars_options(call):
         ("100 🪙 → 1344 ⭐️", 100, 1344),
         ("200 🪙 → 2688 ⭐️", 200, 2688)
     ]
-    
-    # Получаем язык пользователя (по умолчанию казахский)
-    lang = call.from_user.language_code
+
+    profile = get_or_create_profile(call.from_user.id, call.from_user.first_name)
+    lang = profile.get("language", "ru")
+
     texts = {
         'kz': "🪙 Telegram Stars арқылы төлеу:",
-        'ru': "🪙 Оплата через Telegram Stars:"
+        'ru': "🪙 Оплата через Telegram Stars:",
+        'uz': "🪙 Telegram Stars orqali to‘lash:",
+        'id': "🪙 Pembayaran melalui Telegram Stars:"
+    }
+
+    back_btn = {
+        'kz': "🔙 Артқа",
+        'ru': "🔙 Назад",
+        'uz': "🔙 Orqaga",
+        'id': "🔙 Kembali"
     }
 
     markup = types.InlineKeyboardMarkup(row_width=2)
     for text, coins, stars in rates:
         markup.add(types.InlineKeyboardButton(text, callback_data=f"stars:{coins}:{stars}"))
-    markup.add(types.InlineKeyboardButton("🔙 Артқа" if lang == 'kz' else "🔙 Назад", callback_data="buy_coins"))
+
+    markup.add(types.InlineKeyboardButton(back_btn.get(lang, "🔙 Назад"), callback_data="buy_coins"))
 
     bot.edit_message_text(
         texts.get(lang, texts['ru']),
@@ -5182,83 +6025,95 @@ def show_stars_options(call):
         parse_mode="Markdown"
     )
 
-
 @bot.callback_query_handler(func=lambda call: call.data.startswith('stars:'))
 def process_stars_payment(call):
     bot.answer_callback_query(call.id)
+
+    profile = get_or_create_profile(call.from_user.id, call.from_user.first_name)
+    lang = profile.get("language", "ru")
+
+    error_texts = {
+        'kz': "⚠️ Платеж уақытша қолжетімсіз",
+        'ru': "⚠️ Платеж временно недоступен",
+        'uz': "⚠️ To‘lov vaqtincha mavjud emas",
+        'id': "⚠️ Pembayaran sementara tidak tersedia"
+    }
+
     try:
         _, coins, stars = call.data.split(':')
         coins = int(coins)
         stars = int(stars)
-        
-        # Валидация данных
+
         valid_rates = {1: 20, 2: 40, 5: 90, 10: 165, 20: 305, 50: 703, 100: 1344, 200: 2688}
+
         if coins not in valid_rates or stars != valid_rates[coins]:
             raise ValueError("Invalid rate")
 
-        # Преобразование в копейки
-        total_amount = stars * 1  # (1 звезда = 1 единица валюты)
+        total_amount = stars  # 1 star = 1 XTR
 
-        # Создание платежа
         bot.send_invoice(
             call.message.chat.id,
-            title=f"🪙 coins",
+            title=f"🪙 Coins",
             description=f"Покупка — {coins} 🪙",
             provider_token=PAYMENT_PROVIDER_TOKEN,
             currency='XTR',
-            prices=[LabeledPrice(label=f"{coins} Тиын", amount=total_amount)],
+            prices=[LabeledPrice(label=f"{coins} coins", amount=total_amount)],
             invoice_payload=f"stars_{coins}_{stars}"
         )
-        
+
     except Exception as e:
         logging.error(f"Payment error: {e}")
-        lang = call.from_user.language_code
-        texts = {
-            'kz': "⚠️ Платеж временно недоступен",
-            'ru': "⚠️ Платеж временно недоступен"
-        }
-        bot.answer_callback_query(call.id, text=texts.get(lang, texts['kz']), show_alert=True)
-
+        bot.answer_callback_query(
+            call.id,
+            text=error_texts.get(lang, error_texts['ru']),
+            show_alert=True
+        )
 
 @bot.message_handler(content_types=['successful_payment'])
 def handle_payment(message):
     try:
         payload = message.successful_payment.invoice_payload
+
         if payload.startswith("stars_"):
             _, coins, stars = payload.split('_')
             coins = int(coins)
-            
+
             profile = get_or_create_profile(message.from_user.id, message.from_user.first_name)
             profile['coins'] += coins
-            
-            # Получаем язык пользователя (по умолчанию казахский)
-            lang = message.from_user.language_code
-            texts = {
+
+            lang = profile.get("language", "ru")
+
+            success_texts = {
                 'kz': f"✅ Төлем сәтті аяқталды!\nҚосылды: {coins} 🪙\nЖаңа баланс: {profile['coins']}",
-                'ru': f"✅ Платеж успешно завершен!\nДобавлено: {coins} 🪙\nНовый баланс: {profile['coins']}"
+                'ru': f"✅ Платеж успешно завершен!\nДобавлено: {coins} 🪙\nНовый баланс: {profile['coins']}",
+                'uz': f"✅ To‘lov muvaffaqiyatli yakunlandi!\nQo‘shildi: {coins} 🪙\nYangi balans: {profile['coins']}",
+                'id': f"✅ Pembayaran berhasil!\nDitambahkan: {coins} 🪙\nSaldo baru: {profile['coins']}"
             }
 
             bot.send_message(
                 message.chat.id,
-                texts.get(lang, texts['kz']),
+                success_texts.get(lang, success_texts['ru']),
                 parse_mode="Markdown"
             )
-            
-            # Уведомление админу
-            admin_msg = f"💰 Жаңа төлем:\n@{message.from_user.username}\n{coins} тиын ({stars} Stars)"
+
+            # уведомление админу
+            admin_msg = (
+                f"💰 Новый платеж:\n"
+                f"@{message.from_user.username}\n"
+                f"{coins} coins ({stars} Stars)"
+            )
             bot.send_message(ADMIN_ID, admin_msg)
+
     except Exception as e:
         logging.error(f"Payment processing error: {e}")
-
 
 @bot.message_handler(commands=['help'])
 def send_help(message):
     if message.chat.type == 'private':
         user_id = message.from_user.id
         profile = get_or_create_profile(user_id, message.from_user.first_name)
-        lang = profile.get('language', 'kz')  # Получаем язык из профиля
+        lang = profile.get('language', 'ru')
 
-        # Тексты на разных языках
         texts = {
             'kz': {
                 'title': '🗂️ *Сілтемелер*',
@@ -5271,18 +6126,31 @@ def send_help(message):
                 'support': '🛠️ Техническая помощь',
                 'how_to_play': 'Как играть?',
                 'roles': '🤵🏻 Роли'
+            },
+            'uz': {
+                'title': '🗂️ *Havolalar*',
+                'support': '🛠️ Texnik yordam',
+                'how_to_play': 'Qanday o‘ynash kerak?',
+                'roles': '🤵🏻 Rollar'
+            },
+            'id': {
+                'title': '🗂️ *Tautan*',
+                'support': '🛠️ Dukungan teknis',
+                'how_to_play': 'Bagaimana cara bermain?',
+                'roles': '🤵🏻 Peran'
             }
         }
 
-        t = texts[lang]
+        t = texts.get(lang, texts['ru'])
 
         keyboard = types.InlineKeyboardMarkup()
-        button1 = types.InlineKeyboardButton(text=t['support'], url="https://t.me/CityMafiaSupport")
-        button2 = types.InlineKeyboardButton(text=t['how_to_play'], url="https://t.me/+_ljFO5TH39wxZTRi")
-        button3 = types.InlineKeyboardButton(text=t['roles'], url="https://telegra.ph/maf-02-17")
-
-        keyboard.add(button1, button2)
-        keyboard.add(button3)
+        keyboard.add(
+            types.InlineKeyboardButton(text=t['support'], url="https://t.me/CityMafiaSupport"),
+            types.InlineKeyboardButton(text=t['how_to_play'], url="https://t.me/+_ljFO5TH39wxZTRi")
+        )
+        keyboard.add(
+            types.InlineKeyboardButton(text=t['roles'], url="https://telegra.ph/maf-02-17")
+        )
 
         send_message(
             message.chat.id,
@@ -5296,7 +6164,8 @@ def transfer_coins(message):
     chat_id = message.chat.id
     sender_id = message.from_user.id
 
-    lang = chat_settings.get(chat_id, {}).get("language", "ru")  # Определяем язык чата
+    # Определяем язык чата (по умолчанию ru)
+    lang = chat_settings.get(chat_id, {}).get("language", "ru")
 
     texts = {
         'kz': {
@@ -5316,19 +6185,39 @@ def transfer_coins(message):
             'profile_error': "🔸 Ошибка! Не удалось получить профили.",
             'not_enough_coins': "🔸 Недостаточно монет! У вас: {coins} 🪙",
             'confirmation': "*{sender}* отправил *{amount}* 🪙 *{recipient}*"
+        },
+        'uz': {
+            'only_group': "🔸 Bu buyruq faqat guruhlarda mavjud!",
+            'reply_required': "🔸 Tanga yuborish uchun foydalanuvchi xabariga javob bering!\nMasalan: /coins 10",
+            'self_transfer': "🔸 O‘zingizga tanga yubora olmaysiz!",
+            'invalid_amount': "🔸 Noto‘g‘ri miqdor! Masalan: /coins 10",
+            'profile_error': "🔸 Xatolik! Profilni olishning iloji bo‘lmadi.",
+            'not_enough_coins': "🔸 Tangalar yetarli emas! Sizda: {coins} 🪙",
+            'confirmation': "*{sender}* *{recipient}* ga *{amount}* 🪙 yubordi"
+        },
+        'id': {
+            'only_group': "🔸 Perintah ini hanya tersedia di grup!",
+            'reply_required': "🔸 Untuk mengirim koin, balas pesan pengguna!\nContoh: /coins 10",
+            'self_transfer': "🔸 Kamu tidak bisa mengirim koin ke diri sendiri!",
+            'invalid_amount': "🔸 Jumlah tidak valid! Contoh: /coins 10",
+            'profile_error': "🔸 Kesalahan! Tidak dapat mengambil profil.",
+            'not_enough_coins': "🔸 Koin tidak cukup! Kamu punya: {coins} 🪙",
+            'confirmation': "*{sender}* mengirim *{amount}* 🪙 ke *{recipient}*"
         }
-    }[lang]
+    }.get(lang, texts := None) or texts
 
-    # Удаляем сообщение с командой
+    # Пытаемся удалить сообщение с командой
     try:
         bot.delete_message(chat_id, message.message_id)
-    except Exception as e:
-        logging.warning(f"Не удалось удалить сообщение: {e}")
+    except Exception:
+        pass
 
+    # Проверка: только группы
     if message.chat.type not in ['group', 'supergroup']:
         bot.reply_to(message, texts['only_group'])
         return
 
+    # Проверка: должен быть ответ на сообщение
     if not message.reply_to_message:
         bot.reply_to(message, texts['reply_required'])
         return
@@ -5336,10 +6225,12 @@ def transfer_coins(message):
     recipient = message.reply_to_message.from_user
     recipient_id = recipient.id
 
+    # Запрет отправки самому себе
     if sender_id == recipient_id:
         bot.reply_to(message, texts['self_transfer'])
         return
 
+    # Получаем количество монет
     try:
         amount = int(message.text.split()[1])
         if amount <= 0:
@@ -5348,21 +6239,36 @@ def transfer_coins(message):
         bot.reply_to(message, texts['invalid_amount'])
         return
 
+    # Получаем профили
     try:
-        sender_profile = get_or_create_profile(sender_id, message.from_user.first_name, message.from_user.last_name)
-        recipient_profile = get_or_create_profile(recipient_id, recipient.first_name, recipient.last_name)
+        sender_profile = get_or_create_profile(
+            sender_id,
+            message.from_user.first_name,
+            message.from_user.last_name
+        )
+        recipient_profile = get_or_create_profile(
+            recipient_id,
+            recipient.first_name,
+            recipient.last_name
+        )
     except Exception as e:
         logging.error(f"Ошибка при получении профилей: {e}")
         bot.reply_to(message, texts['profile_error'])
         return
 
+    # Проверка баланса
     if sender_profile['coins'] < amount:
-        bot.reply_to(message, texts['not_enough_coins'].format(coins=sender_profile['coins']))
+        bot.reply_to(
+            message,
+            texts['not_enough_coins'].format(coins=sender_profile['coins'])
+        )
         return
 
+    # Перевод монет
     sender_profile['coins'] -= amount
     recipient_profile['coins'] += amount
 
+    # Имена
     sender_name = sender_profile['name']
     if sender_profile.get('last_name'):
         sender_name += f" {sender_profile['last_name']}"
@@ -5371,14 +6277,19 @@ def transfer_coins(message):
     if recipient_profile.get('last_name'):
         recipient_name += f" {recipient_profile['last_name']}"
 
+    # Отправка подтверждения
     try:
-        bot.send_message(chat_id,
-            texts['confirmation'].format(sender=sender_name, amount=amount, recipient=recipient_name),
+        bot.send_message(
+            chat_id,
+            texts['confirmation'].format(
+                sender=sender_name,
+                amount=amount,
+                recipient=recipient_name
+            ),
             parse_mode="Markdown"
         )
     except Exception as e:
         logging.error(f"Ошибка при отправке сообщения: {e}")
-
 MY_USER_ID = 6265990443  # замени на свой ID
 
 @bot.message_handler(commands=['stop'])
@@ -5388,6 +6299,7 @@ def stop_game(message):
     chat_id = message.chat.id
     user_id = message.from_user.id if message.from_user else None
 
+    # Язык чата (по умолчанию ru)
     lang = chat_settings.get(chat_id, {}).get("language", "ru")
 
     texts = {
@@ -5398,9 +6310,18 @@ def stop_game(message):
         "ru": {
             "game_stopped": "🚫 *Игру остановил администратор!*",
             "registration_stopped": "🚫 *Регистрацию остановил администратор*"
+        },
+        "uz": {
+            "game_stopped": "🚫 *O‘yinni administrator to‘xtatdi!*",
+            "registration_stopped": "🚫 *Ro‘yxatdan o‘tish administrator tomonidan to‘xtatildi*"
+        },
+        "id": {
+            "game_stopped": "🚫 *Permainan dihentikan oleh admin!*",
+            "registration_stopped": "🚫 *Pendaftaran dihentikan oleh admin*"
         }
-    }[lang]
+    }.get(lang, texts := None) or texts
 
+    # Удаляем команду
     try:
         bot.delete_message(chat_id, message.message_id)
     except Exception as e:
@@ -5408,10 +6329,11 @@ def stop_game(message):
 
     is_admin = False
 
-    # Разрешить суперпользователю
+    # Суперпользователь
     if user_id == MY_USER_ID:
         is_admin = True
-    # Обычный админ
+
+    # Обычный администратор
     elif user_id:
         try:
             chat_member = bot.get_chat_member(chat_id, user_id)
@@ -5419,6 +6341,7 @@ def stop_game(message):
                 is_admin = True
         except Exception as e:
             print(f"Ошибка при получении члена чата: {e}")
+
     # Анонимный админ
     elif message.sender_chat and message.sender_chat.id == chat_id:
         is_admin = True
@@ -5430,23 +6353,27 @@ def stop_game(message):
     if not chat or (not chat.game_running and not chat.button_id):
         return
 
+    # Остановка таймеров регистрации
     if chat_id in registration_timers:
         for timer in registration_timers[chat_id]:
             timer.cancel()
         del registration_timers[chat_id]
 
+    # Остановка таймера старта игры
     if chat_id in game_start_timers:
         timer = game_start_timers[chat_id]
         if isinstance(timer, threading.Timer):
             timer.cancel()
         del game_start_timers[chat_id]
 
+    # Если игра уже шла
     if chat.game_running:
         chat.game_running = False
         send_message(chat_id, texts['game_stopped'], parse_mode="Markdown")
         reset_game(chat)
         reset_roles(chat)
     else:
+        # Если была только регистрация
         reset_registration(chat_id)
         send_message(chat_id, texts['registration_stopped'], parse_mode="Markdown")
 
@@ -5457,13 +6384,17 @@ def stop_registration_timer(message):
     chat_id = message.chat.id
     user_id = message.from_user.id if message.from_user else None
 
+    # Язык чата (по умолчанию ru)
     lang = chat_settings.get(chat_id, {}).get("language", "ru")
 
     texts = {
-        "kz": "*Ойынның автоматты бастау таймері өшірулі тұр. Сол үшін *\nОйынды /start пәрменін пайдаланып қолмен бастаңыз.",
-        "ru": "*Таймер автоматического запуска игры был отключён. *\nЗапустите игру вручную с помощью команды /start."
+        "kz": "*Ойынның автоматты бастау таймері өшірілді.*\nОйынды /start пәрмені арқылы қолмен бастаңыз.",
+        "ru": "*Таймер автоматического запуска игры был отключён.*\nЗапустите игру вручную с помощью команды /start.",
+        "uz": "*O‘yinning avtomatik boshlash taymeri o‘chirildi.*\nO‘yinni /start buyrug‘i orqali qo‘lda boshlang.",
+        "id": "*Timer mulai otomatis permainan telah dinonaktifkan.*\nMulai permainan secara manual dengan perintah /start."
     }
 
+    # Удаляем сообщение с командой
     try:
         bot.delete_message(chat_id, message.message_id)
     except Exception as e:
@@ -5471,7 +6402,7 @@ def stop_registration_timer(message):
 
     is_admin = False
 
-    # Проверка обычного пользователя
+    # Проверка обычного администратора
     if user_id:
         try:
             chat_member = bot.get_chat_member(chat_id, user_id)
@@ -5482,7 +6413,6 @@ def stop_registration_timer(message):
 
     # Проверка анонимного администратора
     elif message.sender_chat and message.sender_chat.id == chat_id:
-        # Сообщение пришло от имени группы — скорее всего, от анонимного админа
         is_admin = True
 
     if not is_admin:
@@ -5490,20 +6420,25 @@ def stop_registration_timer(message):
 
     timers_stopped = False
 
+    # Остановка уведомлений
     if chat_id in notification_timers:
-        for key, timer in notification_timers[chat_id].items():
+        for timer in notification_timers[chat_id].values():
             if isinstance(timer, threading.Timer):
                 timer.cancel()
         del notification_timers[chat_id]
         timers_stopped = True
 
+    # Остановка таймера старта игры
     if chat_id in game_start_timers:
-        game_start_timers[chat_id].cancel()
+        timer = game_start_timers[chat_id]
+        if isinstance(timer, threading.Timer):
+            timer.cancel()
         del game_start_timers[chat_id]
         timers_stopped = True
 
+    # Уведомление
     if timers_stopped:
-        send_message(chat_id, texts[lang], parse_mode="Markdown")
+        send_message(chat_id, texts.get(lang, texts['ru']), parse_mode="Markdown")
 
 @bot.message_handler(commands=['add_chat'])
 def add_chat(message):
@@ -5805,32 +6740,39 @@ def next_message(message):
     user_id = message.from_user.id
     chat_title = bot.get_chat(chat_id).title
 
-    # Определяем язык чата
+    # Язык чата (по умолчанию ru)
     lang = chat_settings.get(chat_id, {}).get("language", "ru")
 
-    # Тексты на разных языках
+    # Тексты
     texts = {
-        "kz": f"🔔 Сізге {chat_title} чатына жаңа ойынға тіркелу туралы хат келеді.",
-        "ru": f"🔔 Вам придет уведомление о регистрации на новую игру в чате {chat_title}."
+        "kz": f"🔔 Сізге {chat_title} чатына жаңа ойынға тіркелу туралы хабарлама келеді.",
+        "ru": f"🔔 Вам придет уведомление о регистрации на новую игру в чате {chat_title}.",
+        "uz": f"🔔 Sizga {chat_title} chatida yangi o‘yin ro‘yxatdan o‘tishi haqida xabar keladi.",
+        "id": f"🔔 Anda akan menerima pemberitahuan pendaftaran permainan baru di chat {chat_title}."
     }
 
     # Удаляем сообщение команды
     try:
         bot.delete_message(chat_id, message.message_id)
     except Exception as e:
-        logging.error(f"Ошибка при удалении сообщения команды 'next' в чате {chat_id}: {e}")
+        logging.error(
+            f"Ошибка при удалении сообщения команды 'next' в чате {chat_id}: {e}"
+        )
 
+    # Добавляем пользователя в список уведомлений
     if chat_id not in next_players:
         next_players[chat_id] = []
 
     if user_id not in next_players[chat_id]:
         next_players[chat_id].append(user_id)
 
+    # Отправляем личное уведомление
     try:
-        send_message(user_id, texts[lang], parse_mode="Markdown")
+        send_message(user_id, texts.get(lang, texts['ru']), parse_mode="Markdown")
     except Exception as e:
-        logging.error(f"Ошибка при отправке личного уведомления игроку {user_id}: {e}")
-
+        logging.error(
+            f"Ошибка при отправке личного уведомления игроку {user_id}: {e}"
+        )
 
 @bot.message_handler(commands=['leave'])
 def leave_command(message):
@@ -5863,7 +6805,6 @@ def notify_game_start(chat):
     chat_title = bot.get_chat(chat.chat_id).title
     lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
 
-    # Сообщения и кнопки на разных языках
     texts = {
         "kz": {
             "message": f"👑 {chat_title} чатында жаңа ойынға тіркелу басталды!",
@@ -5872,6 +6813,14 @@ def notify_game_start(chat):
         "ru": {
             "message": f"👑 В чате {chat_title} началась регистрация на новую игру!",
             "button": "🤵🏻 Присоединиться"
+        },
+        "uz": {
+            "message": f"👑 {chat_title} chatida yangi o‘yin uchun ro‘yxatdan o‘tish boshlandi!",
+            "button": "🤵🏻 Qo‘shilish"
+        },
+        "id": {
+            "message": f"👑 Pendaftaran permainan baru telah dimulai di chat {chat_title}!",
+            "button": "🤵🏻 Bergabung"
         }
     }
 
@@ -5881,103 +6830,128 @@ def notify_game_start(chat):
                 join_btn = types.InlineKeyboardMarkup()
                 bot_username = bot.get_me().username
                 join_url = f'https://t.me/{bot_username}?start=join_{chat.chat_id}'
-                button_text = texts[lang]["button"]
-                item1 = types.InlineKeyboardButton(button_text, url=join_url)
-                join_btn.add(item1)
+
+                join_btn.add(
+                    types.InlineKeyboardButton(
+                        texts.get(lang, texts['ru'])["button"],
+                        url=join_url
+                    )
+                )
 
                 send_message(
                     player_id,
-                    texts[lang]["message"],
+                    texts.get(lang, texts['ru'])["message"],
                     reply_markup=join_btn,
                     parse_mode="Markdown"
                 )
             except Exception as e:
-                logging.error(f"Ошибка при отправке уведомления о старте игры игроку {player_id}: {e}")
+                logging.error(
+                    f"Ошибка при отправке уведомления о старте игры игроку {player_id}: {e}"
+                )
 
         next_players[chat.chat_id] = []
 
 def leave_game(user_id, game_chat_id, send_private_message=True):
     chat = chat_list.get(game_chat_id)
-    lang = chat_settings.get(game_chat_id, {}).get("language", "kz")  # Язык по умолчанию — казахский
+    lang = chat_settings.get(game_chat_id, {}).get("language", "kz")
 
-    # Сообщения
     texts = {
         'kz': {
             'left_game': "🚫 Сіз ойыннан шықтыңыз",
             'left_registration': "🚫 Сіз ойынға тіркелуден бас тарттыңыз.",
-            'death_msg': "⚰️ {} бұл қаланың ауыр атмосферасына шыдай алмай асылып кетті. Ол *{}* болған еді.",
+            'death_msg': "⚰️ {} ойыннан шықты. Оның рөлі: *{}*",
             'join_button': "🤵🏻 Қосылу"
         },
         'ru': {
             'left_game': "🚫 Вы вышли из игры",
             'left_registration': "🚫 Вы отказались от участия в игре.",
-            'death_msg': "⚰️ {} не выдержал гнетущую атмосферу этого города и повесился. Он был *{}*.",
+            'death_msg': "⚰️ {} покинул игру. Его роль: *{}*",
             'join_button': "🤵🏻 Присоединиться"
+        },
+        'uz': {
+            'left_game': "🚫 Siz o'yindan chiqdingiz",
+            'left_registration': "🚫 Siz o‘yinda qatnashishdan voz kechdingiz.",
+            'death_msg': "⚰️ {} bu shaharning yovuzliklariga chiday olmadi va o'zini osib qo'ydi. Uning roli: *{}*",
+            'join_button': "🤵🏻 Qo‘shilish"
+        },
+        'id': {
+            'left_game': "🚫 Kamu keluar dari permainan",
+            'left_registration': "🚫 Kamu membatalkan pendaftaran permainan.",
+            'death_msg': "⚰️ {} meninggalkan permainan. Perannya: *{}*",
+            'join_button': "🤵🏻 Bergabung"
         }
     }
 
-    if chat:
-        if chat.game_running:
-            if user_id in chat.players:
-                player = chat.players.pop(user_id)
+    texts = texts.get(lang, texts['ru'])
 
-                if user_id in user_game_registration and user_game_registration[user_id] == game_chat_id:
-                    del user_game_registration[user_id]
+    if not chat:
+        return
 
-                full_name = f"{player['name']} {player.get('last_name', '')}".strip()
-                clickable_name = f"[{full_name}](tg://user?id={user_id})"
-                
-                # Перевод роли по языку
-                translated_role = translate_role(player['role'], lang)
+    if chat.game_running and user_id in chat.players:
+        player = chat.players.pop(user_id)
 
-                chat.all_dead_players.append(f"{clickable_name} - {translated_role}")
+        if user_id in user_game_registration and user_game_registration[user_id] == game_chat_id:
+            del user_game_registration[user_id]
 
-                try:
-                    msg = texts[lang]['death_msg'].format(clickable_name, translated_role)
-                    send_message(game_chat_id, msg, parse_mode="Markdown")
-                except Exception as e:
-                    logging.error(f"Не удалось отправить сообщение о выходе игрока в общий чат: {e}")
+        full_name = f"{player['name']} {player.get('last_name', '')}".strip()
+        clickable_name = f"[{full_name}](tg://user?id={user_id})"
 
-                if send_private_message:
-                    try:
-                        send_message(user_id, texts[lang]['left_game'])
-                    except Exception as e:
-                        logging.error(f"Не удалось отправить личное сообщение игроку {user_id}: {e}")
+        translated_role = translate_role(player['role'], lang)
+        chat.all_dead_players.append(f"{clickable_name} - {translated_role}")
 
-                if player['role'] == '🤵🏻‍♂️ Дон':
-                    check_and_transfer_don_role(chat)
+        try:
+            send_message(
+                game_chat_id,
+                texts['death_msg'].format(clickable_name, translated_role),
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            logging.error(f"Ошибка отправки сообщения в чат: {e}")
 
-                if player['role'] == '🕵🏼 Комиссар':
-                    check_and_transfer_sheriff_role(chat)
-
-        elif user_id in chat.players:
-            chat.players.pop(user_id)
-
-            if user_id in user_game_registration and user_game_registration[user_id] == game_chat_id:
-                del user_game_registration[user_id]
-
-            if send_private_message:
-                try:
-                    send_message(user_id, texts[lang]['left_registration'])
-                except Exception as e:
-                    logging.error(f"Не удалось отправить личное сообщение игроку {user_id}: {e}")
-
-            new_msg_text = registration_message(chat.players, chat.chat_id)
-            join_text = texts[lang]['join_button']
-            new_markup = types.InlineKeyboardMarkup([[
-                types.InlineKeyboardButton(join_text, url=f'https://t.me/{bot.get_me().username}?start=join_{game_chat_id}')
-            ]])
-
+        if send_private_message:
             try:
-                bot.edit_message_text(
-                    chat_id=game_chat_id,
-                    message_id=chat.button_id,
-                    text=new_msg_text,
-                    reply_markup=new_markup,
-                    parse_mode="Markdown"
-                )
+                send_message(user_id, texts['left_game'])
             except Exception as e:
-                logging.error(f"Ошибка обновления сообщения о регистрации: {e}")
+                logging.error(f"Ошибка ЛС игроку {user_id}: {e}")
+
+        if player['role'] == '🤵🏻‍♂️ Дон':
+            check_and_transfer_don_role(chat)
+
+        if player['role'] == '🕵🏼 Комиссар':
+            check_and_transfer_sheriff_role(chat)
+
+    elif user_id in chat.players:
+        chat.players.pop(user_id)
+
+        if user_id in user_game_registration and user_game_registration[user_id] == game_chat_id:
+            del user_game_registration[user_id]
+
+        if send_private_message:
+            try:
+                send_message(user_id, texts['left_registration'])
+            except Exception as e:
+                logging.error(f"Ошибка ЛС игроку {user_id}: {e}")
+
+        new_msg_text = registration_message(chat.players, chat.chat_id)
+        join_text = texts['join_button']
+
+        markup = types.InlineKeyboardMarkup([[
+            types.InlineKeyboardButton(
+                join_text,
+                url=f'https://t.me/{bot.get_me().username}?start=join_{game_chat_id}'
+            )
+        ]])
+
+        try:
+            bot.edit_message_text(
+                chat_id=game_chat_id,
+                message_id=chat.button_id,
+                text=new_msg_text,
+                reply_markup=markup,
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            logging.error(f"Ошибка обновления регистрации: {e}")
 
 
 def log_give_action(admin_id, target_id, items):
@@ -6199,55 +7173,81 @@ def confirm_give_menu(call):
 
 @bot.message_handler(commands=['top'])
 def top_players_command(message):
+    # Игнорируем ЛС
     if message.chat.type == 'private':
-        return  # Игнорируем команду в личных сообщениях
+        return
 
     user_id = message.from_user.id
     current_time = time.time()
 
+    # Удаляем команду
     try:
         bot.delete_message(message.chat.id, message.message_id)
     except Exception:
         pass
 
+    # Антиспам (15 сек)
     if user_id in last_top_usage and current_time - last_top_usage[user_id] < 15:
         return
 
     last_top_usage[user_id] = current_time
 
+    # Язык чата
     lang = chat_settings.get(message.chat.id, {}).get("language", "ru")
 
+    texts = {
+        "kz": {
+            "title": "🏆 *Аптаның 15 үздік ойыншысы:*\n\n",
+            "empty": "🏆 *Аптаның 15 үздік ойыншысы:*\n\n❌ Қазіргі уақытта рейтингте ойыншылар жоқ. Үздіктер қатарына ену үшін ойнаңыз!",
+            "unknown": "Белгісіз ойыншы"
+        },
+        "ru": {
+            "title": "🏆 *15 лучших игроков недели:*\n\n",
+            "empty": "🏆 *15 лучших игроков недели:*\n\n❌ В настоящее время в рейтинге нет игроков. Играй, чтобы попасть в список лучших!",
+            "unknown": "Неизвестный игрок"
+        },
+        "uz": {
+            "title": "🏆 *Haftaning eng yaxshi 15 o‘yinchisi:*\n\n",
+            "empty": "🏆 *Haftaning eng yaxshi 15 o‘yinchisi:*\n\n❌ Hozircha reytingda o‘yinchilar yo‘q. Eng yaxshilar qatoriga kirish uchun o‘ynang!",
+            "unknown": "Noma’lum o‘yinchi"
+        },
+        "id": {
+            "title": "🏆 *15 pemain terbaik minggu ini:*\n\n",
+            "empty": "🏆 *15 pemain terbaik minggu ini:*\n\n❌ Saat ini belum ada pemain di peringkat. Mainkan game untuk masuk daftar terbaik!",
+            "unknown": "Pemain tidak dikenal"
+        }
+    }
+
+    texts = texts.get(lang, texts['ru'])
+
+    # Если нет данных
     if not player_scores:
-        if lang == 'kz':
-            send_message(
-                message.chat.id,
-                "🏆 *Аптаның 15 үздік ойыншысы:*\n\n❌ Қазіргі уақытта рейтингте ешқандай ойыншы жоқ. Үздіктер тізіміне ену үшін, ойынды ойнаңыз!",
-                parse_mode="Markdown"
-            )
-        if lang == 'ru':
-            send_message(
-                message.chat.id,
-                "🏆 *15 лучших игроков недели:*\n\n❌ В настоящее время в рейтинге нет игроков. Играй, чтобы попасть в список лучших!",
-                parse_mode="Markdown"
-            )
+        send_message(
+            message.chat.id,
+            texts['empty'],
+            parse_mode="Markdown"
+        )
         return
 
-    sorted_scores = sorted(player_scores.items(), key=lambda x: x[1], reverse=True)[:15]
+    # Сортировка топ-15
+    sorted_scores = sorted(
+        player_scores.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )[:15]
 
-    if lang == 'kz':
-        top_message = "🏆 *Аптаның 15 үздік ойыншысы:*\n\n"
-    if lang == 'ru':
-        top_message = "🏆 *15 лучших игроков недели:*\n\n"
+    top_message = texts['title']
 
-    for index, (user_id, score) in enumerate(sorted_scores, start=1):
+    for index, (player_id, score) in enumerate(sorted_scores, start=1):
         try:
-            user = bot.get_chat_member(message.chat.id, user_id)
-            player_name = f"{user.user.first_name} {user.user.last_name}" if user.user.last_name else user.user.first_name
+            user = bot.get_chat_member(message.chat.id, player_id)
+            player_name = (
+                f"{user.user.first_name} {user.user.last_name}"
+                if user.user.last_name
+                else user.user.first_name
+            )
         except Exception:
-            if lang == 'kz':
-                player_name = "Белгісіз ойыншы"
-            if lang == 'ru':
-                player_name = "Неизвестный игрок"
+            player_name = texts['unknown']
 
         top_message += f"{index}. {player_name}\n"
 
@@ -6319,33 +7319,67 @@ def process_sheriff_actions(chat):
     """Обработка действий комиссара с учётом языка чата."""
     lang = chat_settings.get(chat.chat_id, {}).get("language", "ru")
 
+    texts = {
+        "kz": {
+            "sheriff_check_peace": "Сен {name} дегенді тексеріп, оның рөлі - 👨🏼 Тату тұрғын екенін анықтадың.",
+            "target_peace": "🕵🏼 Комиссар сені іздеп келді, бірақ қорғаушы саған тату тұрғын рөлін берді.",
+            "sergeant_peace": "🕵🏼 Комиссар {name} дегенді тексеріп, оның рөлі - 👨🏼 Тату тұрғын екенін анықтады.",
+            "fake_docs_target": "🕵🏼 *Комиссар* сені іздеп келді, бірақ сен жалған құжаттарды көрсеттің.",
+            "visit_target": "🕵🏼 *Комиссар* саған қонаққа баруды шешті.",
+            "real_role": "Сен {name} дегенді тексеріп, оның рөлі - {role} екенін анықтадың.",
+            "sergeant_real": "🕵🏼 Комиссар {name} дегенді тексеріп, оның рөлі - {role} екенін анықтады."
+        },
+        "ru": {
+            "sheriff_check_peace": "Ты проверил игрока {name}, и его роль — 👨🏼 Мирный житель.",
+            "target_peace": "🕵🏼 Комиссар пришёл к тебе, но адвокат показал, что ты мирный житель.",
+            "sergeant_peace": "🕵🏼 Комиссар проверил {name}, и его роль — 👨🏼 Мирный житель.",
+            "fake_docs_target": "🕵🏼 *Комиссар* пришёл к тебе, но ты показал фальшивые документы.",
+            "visit_target": "🕵🏼 *Комиссар* решил заглянуть к тебе.",
+            "real_role": "Ты проверил игрока {name}, и его роль — {role}.",
+            "sergeant_real": "🕵🏼 Комиссар проверил {name}, и его роль — {role}."
+        },
+        "uz": {
+            "sheriff_check_peace": "Sen {name} ni tekshirding va uning roli 👨🏼 Tinch aholi ekanini bilding.",
+            "target_peace": "🕵🏼 Komissar seni tekshirdi, ammo himoyachi seni tinch aholi sifatida ko‘rsatdi.",
+            "sergeant_peace": "🕵🏼 Komissar {name} ni tekshirib, uni 👨🏼 Tinch aholi deb aniqladi.",
+            "fake_docs_target": "🕵🏼 *Komissar* keldi, ammo sen soxta hujjatlarni ko‘rsatding.",
+            "visit_target": "🕵🏼 *Komissar* seni tekshirishga qaror qildi.",
+            "real_role": "Sen {name} ni tekshirding va uning roli {role} ekanini bilding.",
+            "sergeant_real": "🕵🏼 Komissar {name} ni tekshirib, uning roli {role} ekanini aniqladi."
+        },
+        "id": {
+            "sheriff_check_peace": "Kamu memeriksa {name} dan mengetahui perannya adalah 👨🏼 Warga sipil.",
+            "target_peace": "🕵🏼 Komisaris datang ke rumahmu, tapi pengacara menunjukkan kamu warga sipil.",
+            "sergeant_peace": "🕵🏼 Komisaris memeriksa {name} dan perannya adalah 👨🏼 Warga sipil.",
+            "fake_docs_target": "🕵🏼 *Komisaris* datang, tapi kamu menunjukkan dokumen palsu.",
+            "visit_target": "🕵🏼 *Komisaris* memutuskan untuk mengunjungimu.",
+            "real_role": "Kamu memeriksa {name} dan perannya adalah {role}.",
+            "sergeant_real": "🕵🏼 Komisaris memeriksa {name} dan perannya adalah {role}."
+        }
+    }
+
+    T = texts.get(lang, texts["ru"])
+
+    # --- логика функции ниже НЕ менялась ---
     if chat.lawyer_target and chat.sheriff_check and chat.lawyer_target == chat.sheriff_check:
         checked_player = chat.players[chat.sheriff_check]
 
         if checked_player['role'] in {'🤵🏻‍♂️ Дон', '🤵🏻 Мафия'}:
             try:
-                if lang == 'kz':
-                    send_message(chat.sheriff_id, f"Сен {get_full_name(checked_player)} дегенді тексеріп, оның рөлі - 👨🏼 Тату тұрғын екенін анықтадың.")
-                if lang == 'ru':
-                    send_message(chat.sheriff_id, f"Ты проверил игрока {get_full_name(checked_player)}, и его роль — 👨🏼 Мирный житель.")
+                send_message(chat.sheriff_id,
+                             T["sheriff_check_peace"].format(name=get_full_name(checked_player)))
             except Exception:
                 pass
 
             try:
-                if lang == 'kz':
-                    send_message(chat.sheriff_check, "🕵🏼 Комиссар сені іздеп келді, бірақ қорғаушы саған тату тұрғын рөлін берді.")
-                if lang == 'ru':
-                    send_message(chat.sheriff_check, "🕵🏼 Комиссар пришёл к тебе, но адвокат показал, что ты мирный житель.")
+                send_message(chat.sheriff_check, T["target_peace"])
             except Exception:
                 pass
 
             if chat.sergeant_id and chat.sergeant_id in chat.players:
                 try:
-                    if lang == 'kz':
-                        msg = f"🕵🏼 Комиссар {get_full_name(checked_player)} дегенді тексеріп, оның рөлі - 👨🏼 Тату тұрғын екенін анықтады."
-                    if lang == 'ru':
-                        msg = f"🕵🏼 Комиссар проверил {get_full_name(checked_player)}, и его роль — 👨🏼 Мирный житель."
-                    send_message(chat.sergeant_id, msg)
+                    send_message(chat.sergeant_id,
+                                 T["sergeant_peace"].format(name=get_full_name(checked_player)))
                 except Exception:
                     pass
             return
@@ -6355,93 +7389,78 @@ def process_sheriff_actions(chat):
         player_profile = player_profiles.get(chat.sheriff_check, {})
         allowed_roles = {'🤵🏻‍♂️ Дон', '🔪 Жауыз', '🤵🏻 Мафия'}
 
-        if (player_profile.get('fake_docs', 0) > 0 and 
-            not player_profile.get('fake_docs_used', False) and 
-            player_profile.get('docs_active', False) and 
+        if (player_profile.get('fake_docs', 0) > 0 and
+            not player_profile.get('fake_docs_used', False) and
+            player_profile.get('docs_active', False) and
             checked_player['role'] in allowed_roles):
 
-            try:
-                if lang == 'kz':
-                    send_message(chat.sheriff_id, f"Сен {get_full_name(checked_player)} дегенді тексеріп, оның рөлі - 👨🏼 Тату тұрғын екенін анықтадың.")
-                if lang == 'ru':
-                    send_message(chat.sheriff_id, f"Ты проверил игрока {get_full_name(checked_player)}, и его роль — 👨🏼 Мирный житель.")
-            except Exception:
-                pass
-
-            try:
-                if lang == 'kz':
-                    send_message(chat.sheriff_check, "🕵🏼 *Комиссар* сені іздеп келді, бірақ сен жалған құжаттарды көрсеттің.", parse_mode="Markdown")
-                if lang == 'ru':
-                    send_message(chat.sheriff_check, "🕵🏼 *Комиссар* пришёл к тебе, но ты показал фальшивые документы.", parse_mode="Markdown")
-            except Exception:
-                pass
+            send_message(chat.sheriff_id,
+                         T["sheriff_check_peace"].format(name=get_full_name(checked_player)))
+            send_message(chat.sheriff_check, T["fake_docs_target"], parse_mode="Markdown")
 
             if chat.sergeant_id and chat.sergeant_id in chat.players:
-                try:
-                    if lang == 'kz':
-                        msg = f"🕵🏼 Комиссар {get_full_name(checked_player)} дегенді тексеріп, оның рөлі - 👨🏼 Тату тұрғын екенін анықтады."
-                    if lang == 'ru':
-                        msg = f"🕵🏼 Комиссар проверил {get_full_name(checked_player)}, и его роль — 👨🏼 Мирный житель."
-                    send_message(chat.sergeant_id, msg)
-                except Exception:
-                    pass
+                send_message(chat.sergeant_id,
+                             T["sergeant_peace"].format(name=get_full_name(checked_player)))
 
             player_profile['fake_docs'] -= 1
             player_profile['fake_docs_used'] = True
             player_profiles[chat.sheriff_check] = player_profile
         else:
-            try:
-                if lang == 'kz':
-                    send_message(chat.sheriff_id, f"Сен {get_full_name(checked_player)} дегенді тексеріп, оның рөлі - {checked_player['role']} екенін анықтадың.")
-                if lang == 'ru':
-                    send_message(chat.sheriff_id, f"Ты проверил игрока {get_full_name(checked_player)}, и его роль — {checked_player['role']}.")
-            except Exception:
-                pass
-
-            try:
-                if lang == 'kz':
-                    send_message(chat.sheriff_check, "🕵🏼 *Комиссар* саған қонаққа баруды шешті.", parse_mode="Markdown")
-                if lang == 'ru':
-                    send_message(chat.sheriff_check, "🕵🏼 *Комиссар* решил заглянуть к тебе.", parse_mode="Markdown")
-            except Exception:
-                pass
+            send_message(chat.sheriff_id,
+                         T["real_role"].format(
+                             name=get_full_name(checked_player),
+                             role=checked_player['role']
+                         ))
+            send_message(chat.sheriff_check, T["visit_target"], parse_mode="Markdown")
 
             if chat.sergeant_id and chat.sergeant_id in chat.players:
-                try:
-                    if lang == 'kz':
-                        msg = f"🕵🏼 Комиссар {get_full_name(checked_player)} дегенді тексеріп, оның рөлі - {checked_player['role']} екенін анықтады."
-                    if lang == 'ru':
-                        msg = f"🕵🏼 Комиссар проверил {get_full_name(checked_player)}, и его роль — {checked_player['role']}."
-                    send_message(chat.sergeant_id, msg)
-                except Exception:
-                    pass
-
+                send_message(chat.sergeant_id,
+                             T["sergeant_real"].format(
+                                 name=get_full_name(checked_player),
+                                 role=checked_player['role']
+                             ))
 
 def handle_voting(chat):
-    """Обработка голосования."""
     chat.is_voting_time = True
     chat.vote_counts.clear()
 
     lang = chat_settings.get(chat.chat_id, {}).get("language", "ru")
     voting_time = chat_settings.get(chat.chat_id, {}).get("voting_time", 45)
 
-    # Заголовок голосования
-    if lang == 'kz':
-        title = f'*Айыптыларды табу және жазалау уақыты келді.*\nДауыс беру {voting_time} секундқа созылады'
-        vote_button_text = '🗳 Дауыс беру'
-        pm_text = '*Айыптыларды іздеу уақыты келді!*\nКімді асқың келеді?'
-        skip_text = '🚷 Өткізіп жіберу'
-    if lang == 'ru':
-        title = f'*Время найти и наказать виновных.*\nГолосование продлится {voting_time} секунд'
-        vote_button_text = '🗳 Проголосовать'
-        pm_text = '*Время искать виновных!*\nКого хочешь повесить?'
-        skip_text = '🚷 Пропустить голосование'
+    texts = {
+        "kz": {
+            "title": "*Айыптыларды табу және жазалау уақыты келді.*\nДауыс беру {time} секундқа созылады",
+            "vote": "🗳 Дауыс беру",
+            "pm": "*Айыптыларды іздеу уақыты келді!*\nКімді асқың келеді?",
+            "skip": "🚷 Өткізіп жіберу"
+        },
+        "ru": {
+            "title": "*Время найти и наказать виновных.*\nГолосование продлится {time} секунд",
+            "vote": "🗳 Проголосовать",
+            "pm": "*Время искать виновных!*\nКого хочешь повесить?",
+            "skip": "🚷 Пропустить голосование"
+        },
+        "uz": {
+            "title": "*Aybdorlarni topish va jazolash vaqti keldi.*\nOvoz berish {time} soniya davom etadi",
+            "vote": "🗳 Ovoz berish",
+            "pm": "*Aybdorlarni izlash vaqti!*\nKimni osmoqchisan?",
+            "skip": "🚷 O‘tkazib yuborish"
+        },
+        "id": {
+            "title": "*Saatnya mencari dan menghukum yang bersalah.*\nPemungutan suara berlangsung {time} detik",
+            "vote": "🗳 Beri suara",
+            "pm": "*Saatnya mencari yang bersalah!*\nSiapa yang ingin kamu gantung?",
+            "skip": "🚷 Lewati voting"
+        }
+    }
+
+    T = texts.get(lang, texts["ru"])
 
     vote_msg = send_message(
         chat.chat_id,
-        title,
+        T["title"].format(time=voting_time),
         reply_markup=types.InlineKeyboardMarkup([
-            [types.InlineKeyboardButton(vote_button_text, url=f'https://t.me/{bot.get_me().username}')]
+            [types.InlineKeyboardButton(T["vote"], url=f'https://t.me/{bot.get_me().username}')]
         ]),
         parse_mode="Markdown"
     )
@@ -6452,23 +7471,19 @@ def handle_voting(chat):
     for voter_id in chat.players:
         if voter_id != chat.lover_target_id or lover_target_healed:
             try:
-                voter_role = chat.players[voter_id]['role']
                 buttons = []
-
-                # Сортируем игроков по их номеру
-                sorted_players = sorted(chat.players.items(), key=lambda item: item[1]['number'])
+                voter_role = chat.players[voter_id]['role']
+                sorted_players = sorted(chat.players.items(), key=lambda i: i[1]['number'])
 
                 for pid, target in sorted_players:
                     if pid == voter_id:
-                        continue  # Игрок не может голосовать сам за себя
+                        continue
 
                     name = get_full_name(target)
 
-                    # Для мафии/дона
                     if voter_role in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон'] and target['role'] in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон']:
                         name = f"🤵🏻 {name}"
 
-                    # Для полицейских
                     if voter_role in ['🕵🏼 Комиссар', '👮🏼 Сержант']:
                         if target['role'] == '🕵🏼 Комиссар':
                             name = f"🕵🏼 {name}"
@@ -6477,12 +7492,11 @@ def handle_voting(chat):
 
                     buttons.append([types.InlineKeyboardButton(name, callback_data=f"{pid}_vote")])
 
-                # Кнопка для пропуска голосования
-                buttons.append([types.InlineKeyboardButton(skip_text, callback_data='skip_vote')])
+                buttons.append([types.InlineKeyboardButton(T["skip"], callback_data='skip_vote')])
 
                 send_message(
                     voter_id,
-                    pm_text,
+                    T["pm"],
                     reply_markup=types.InlineKeyboardMarkup(buttons),
                     parse_mode="Markdown"
                 )
@@ -6494,29 +7508,7 @@ def handle_voting(chat):
     return end_day_voting(chat)
 
 
-def notify_night_start(chat_id, players_alive_text):
-    """Отправляет уведомление о начале ночи."""
-    lang = chat_settings.get(chat_id, {}).get("language", "ru")
 
-    bot_username = bot.get_me().username
-    private_message_url = f'https://t.me/{bot_username}'
-    private_message_btn = types.InlineKeyboardMarkup()
-    
-    if lang == 'kz':
-        btn_text = 'Ботқа өту'
-        night_caption = '🌙 *Түн болды*\nДалаға тек ең батыл және қорықпайтын адамдар шығады. Күндіз олардың тірісін санаймыз...'
-    if lang == 'ru':
-        btn_text = 'Перейти к боту'
-        night_caption = '🌙 *Наступила ночь*\nТолько самые смелые и бесстрашные выходят на улицу. Днём мы пересчитаем, кто остался...'
-
-    private_message_btn.add(types.InlineKeyboardButton(btn_text, url=private_message_url))
-
-    # Отправляем изображение с сообщением о начале ночи
-    bot.send_photo(chat_id, 'https://t.me/ProfileChaekBot/29559', caption=night_caption, parse_mode="Markdown", reply_markup=private_message_btn)
-
-    time.sleep(1.5)
-
-    send_message(chat_id=chat_id, message=players_alive_text, parse_mode="Markdown", reply_markup=private_message_btn)
 
 def reset_night_state(chat):
     """Сбрасывает состояние игры перед началом ночи."""
@@ -6550,68 +7542,96 @@ def setup_new_chat(chat_id):
     # Инициализируем настройки по умолчанию
     chat_settings[chat_id] = {
         "language": "ru",
-            "pin_registration": True,
-            "allow_registration": True,
-            "allow_leave_game": True,
-            "registration_time": (120, 60),
-            "night_time": 45,
-            "day_time": 60,
-            "voting_time": 45,
-            "players_to_start": 20,
-            "anonymous_voting": False,
-            "confirmation_time": 30,
-            "mafia_ratio": 4,
-            "shield_buff": True,
-            "docs_buff": True,
-            "hanging_shield_buff": True,
-            "gun_buff": True
+        "pin_registration": True,
+        "allow_registration": True,
+        "allow_leave_game": True,
+        "registration_time": (120, 60),
+        "night_time": 45,
+        "day_time": 60,
+        "voting_time": 45,
+        "players_to_start": 20,
+        "anonymous_voting": False,
+        "confirmation_time": 30,
+        "mafia_ratio": 4,
+        "shield_buff": True,
+        "docs_buff": True,
+        "hanging_shield_buff": True,
+        "gun_buff": True
     }
-    
+
     # Отправляем приветственное сообщение с выбором языка
     welcome_markup = types.InlineKeyboardMarkup()
     welcome_markup.add(
-        types.InlineKeyboardButton("🇰🇿 Қазақша", callback_data=f"init_lang_kz_{chat_id}"),
-        types.InlineKeyboardButton("🇷🇺 Русский", callback_data=f"init_lang_ru_{chat_id}")
+        types.InlineKeyboardButton("🇷🇺 Русский", callback_data=f"init_lang_ru_{chat_id}"),
+        types.InlineKeyboardButton("🇰🇿 Қазақша", callback_data=f"init_lang_kz_{chat_id}")
     )
-    
-    welcome_text = (
-        "Выберите язык"
+    welcome_markup.add(
+        types.InlineKeyboardButton("🇺🇿 Oʻzbekcha", callback_data=f"init_lang_uz_{chat_id}"),
+        types.InlineKeyboardButton("🇮🇩 Bahasa Indonesia", callback_data=f"init_lang_id_{chat_id}")
     )
-    
+
+    welcome_text = "Выберите язык\nTilni tanlang\nPilih bahasa"
+
     send_message(chat_id, welcome_text, reply_markup=welcome_markup)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("init_lang_"))
 def handle_init_language(call):
     lang = call.data.split("_")[2]
     chat_id = int(call.data.split("_")[3])
-    
+
     if chat_id not in chat_settings:
         chat_settings[chat_id] = {}
-    
+
     chat_settings[chat_id]["language"] = lang
-    
+
     # Удаляем сообщение с выбором языка
     try:
         bot.delete_message(chat_id, call.message.message_id)
     except:
         pass
-    
-    # Отправляем инструкции на выбранном языке
+
+    # Инструкции на выбранном языке
     instructions = {
         "kz": (
             "Сәлем! :)\n"
             "Мен 🤵🏻 Мафия ойынын жүргізетін ботпын\n"
-            "Ойынды бастау үшін маған төмендегі әкімші құқықтарын беріңіз:\n🛑 Хат жою\n🛑 Пайдаланушы бұғаттау\n🛑 Хат бекіту\n⚙️ Баптауларды өзгерту үшін /settings пәрменін пайдаланыңыз"
+            "Ойынды бастау үшін маған төмендегі әкімші құқықтарын беріңіз:\n"
+            "🛑 Хат жою\n"
+            "🛑 Пайдаланушы бұғаттау\n"
+            "🛑 Хат бекіту\n"
+            "⚙️ Баптауларды өзгерту үшін /settings пәрменін пайдаланыңыз"
         ),
         "ru": (
             "Привет! :)\n"
             "Я бот ведущий для игры в 🤵🏻 Мафию\n"
-            "Чтобы начать игру, для начала выдайте мне права админстратора:\n🛑 Удалять сообщение\n🛑 Закреплять сообщение\n🛑 Блокировать пользывателей\n⚙️ Используйте команду /settings для изменения настроек."
+            "Чтобы начать игру, для начала выдайте мне права администратора:\n"
+            "🛑 Удалять сообщения\n"
+            "🛑 Закреплять сообщения\n"
+            "🛑 Блокировать пользователей\n"
+            "⚙️ Используйте команду /settings для изменения настроек."
+        ),
+        "uz": (
+            "Salom! :)\n"
+            "Men 🤵🏻 “Mafia” o‘yinini olib boruvchi botman\n"
+            "O‘yinni boshlash uchun menga quyidagi administrator huquqlarini bering:\n"
+            "🛑 Xabarlarni o‘chirish\n"
+            "🛑 Foydalanuvchilarni bloklash\n"
+            "🛑 Xabarlarni mahkamlash\n"
+            "⚙️ Sozlamalarni o‘zgartirish uchun /settings buyrug‘idan foydalaning"
+        ),
+        "id": (
+            "Halo! :)\n"
+            "Saya adalah bot pemandu untuk permainan 🤵🏻 Mafia\n"
+            "Untuk memulai permainan, silakan berikan saya hak administrator berikut:\n"
+            "🛑 Menghapus pesan\n"
+            "🛑 Memblokir pengguna\n"
+            "🛑 Menyematkan pesan\n"
+            "⚙️ Gunakan perintah /settings untuk mengubah pengaturan"
         )
     }
-    
-    send_message(chat_id, instructions[lang])
-    
+
+    send_message(chat_id, instructions.get(lang, instructions["ru"]))
+
     # Предлагаем сразу настроить параметры
     if is_admin_or_me(bot, chat_id, call.from_user.id):
         settings_handler_by_chat(chat_id)
@@ -6676,25 +7696,31 @@ def process_lover_action(chat):
 
         # Уведомление цели Любовницы
         try:
-            if lang == 'kz':
-                send_message(chat.lover_target_id, '💃🏼 Көңілдес "Маған кел, бәрін ұмыт...", - деп ән салды', parse_mode="Markdown")
-            if lang == 'ru':
-                send_message(chat.lover_target_id, '💃🏼 Любовница напела: "Иди ко мне, забудь обо всём..."', parse_mode="Markdown")
-        except Exception:
+            texts = {
+                "kz": '💃🏼 Көңілдес "Маған кел, бәрін ұмыт...", - деп ән салды',
+                "ru": '💃🏼 Любовница напела: "Иди ко мне, забудь обо всём..."',
+                "uz": '💃🏼 Ma’shuqa kuyladi: "Menga kel, hammasini unut..."',
+                "id": '💃🏼 Sang wanita penggoda bernyanyi: "Datanglah padaku, lupakan segalanya..."'
+            }
+            send_message(chat.lover_target_id, texts.get(lang, texts["ru"]), parse_mode="Markdown")
+        except:
             pass
 
-        # Проверяем, лечит ли Доктор цель Любовницы
+        # Если Доктор лечит цель
         if chat.doc_target == chat.lover_target_id:
             try:
-                if lang == 'kz':
-                    send_message(chat.lover_target_id, "💃🏼 *Көңілдес* сені тыныштандырғысы келді, бірақ 👨🏼‍⚕️ *Дәрігердің* сенімен екенін көріп, кетіп қалды!", parse_mode="Markdown")
-                if lang == 'ru':
-                    send_message(chat.lover_target_id, "💃🏼 *Любовница* хотела тебя соблазнить, но увидела, что ты с 👨🏼‍⚕️ *Доктором*, и ушла.", parse_mode="Markdown")
-            except Exception:
+                texts = {
+                    "kz": "💃🏼 *Көңілдес* сені азғырмақ болды, бірақ 👨🏼‍⚕️ *Дәрігердің* жаныңда екенін көріп кетіп қалды!",
+                    "ru": "💃🏼 *Любовница* хотела тебя соблазнить, но увидела, что ты с 👨🏼‍⚕️ *Доктором*, и ушла.",
+                    "uz": "💃🏼 *Ma’shuqa* seni yo‘ldan urmoqchi edi, ammo 👨🏼‍⚕️ *Doktor* bilan ekaningni ko‘rib ketdi.",
+                    "id": "💃🏼 *Wanita penggoda* ingin menggoda kamu, tapi melihat kamu bersama 👨🏼‍⚕️ *Dokter* lalu pergi."
+                }
+                send_message(chat.lover_target_id, texts.get(lang, texts["ru"]), parse_mode="Markdown")
+            except:
                 pass
+
             lover_target_healed = True
         else:
-            # Блокируем голосование и действия цели
             lover_target['voting_blocked'] = True
 
             if lover_target['role'] == '🤵🏻‍♂️ Дон':
@@ -6706,7 +7732,6 @@ def process_lover_action(chat):
                 chat.doc_target = None
             elif lover_target['role'] == '🧙‍♂️ Қаңғыбас':
                 chat.hobo_target = None
-                lover_target['voting_blocked'] = True
             elif lover_target['role'] == '👨🏼‍💼 Қорғаушы':
                 chat.lawyer_target = None
             elif lover_target['role'] == '🔪 Жауыз':
@@ -6716,159 +7741,151 @@ def process_lover_action(chat):
         lover_target['voting_blocked'] = False
         lover_target['healed_from_lover'] = True
 
+
 def process_hobo_action(chat):
-    """Обрабатывает действия Бомжа с учетом языка."""
-    lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
+    """Обрабатывает действия Бомжа."""
+    lang = chat_settings.get(chat.chat_id, {}).get("language", "ru")
 
     if chat.hobo_id and chat.hobo_target:
         hobo_target = chat.hobo_target
+
         if hobo_target in chat.players:
             hobo_target_name = get_full_name(chat.players[hobo_target])
             hobo_visitors = []
 
             try:
-                if lang == 'kz':
-                    send_message(hobo_target, f'🧙🏼‍♂️ *Қаңғыбас* түнде сенен бір бөтелке сұрауға кетті.', parse_mode="Markdown")
-                if lang == 'ru':
-                    send_message(hobo_target, f'🧙🏼‍♂️ *Бомж* пришёл к тебе ночью попросить бутылку.', parse_mode="Markdown")
-            except Exception as e:
-                logging.error(f"Не удалось отправить сообщение цели бомжа {hobo_target}: {e}")
+                texts = {
+                    "kz": '🧙🏼‍♂️ *Қаңғыбас* түнде сенен бөтелке сұрауға келді.',
+                    "ru": '🧙🏼‍♂️ *Бомж* пришёл к тебе ночью попросить бутылку.',
+                    "uz": '🧙🏼‍♂️ *Daydi* kechasi sendan shisha so‘rab keldi.',
+                    "id": '🧙🏼‍♂️ *Gelandangan* datang ke rumahmu malam hari mencari botol.'
+                }
+                send_message(hobo_target, texts.get(lang, texts["ru"]), parse_mode="Markdown")
+            except:
+                pass
 
-            if chat.dead and chat.dead[0] == hobo_target:
-                don_id = chat.don_id
-                if don_id in chat.players:
-                    hobo_visitors.append(get_full_name(chat.players[don_id]))
+            # Сбор посетителей
+            checks = [
+                (chat.don_id, chat.dead and chat.dead[0] == hobo_target),
+                (chat.sheriff_id, chat.sheriff_check == hobo_target or chat.sheriff_shoot == hobo_target),
+                (next((pid for pid, p in chat.players.items() if p['role'] == '👨🏼‍⚕️ Дәрігер'), None), chat.doc_target == hobo_target),
+                (chat.lawyer_id, chat.lawyer_target == hobo_target),
+                (chat.maniac_id, chat.maniac_target == hobo_target),
+                (chat.lover_id, chat.lover_target_id == hobo_target)
+            ]
 
-            if chat.sheriff_check == hobo_target or chat.sheriff_shoot == hobo_target:
-                sheriff_id = chat.sheriff_id
-                if sheriff_id in chat.players:
-                    hobo_visitors.append(get_full_name(chat.players[sheriff_id]))
-
-            if chat.doc_target == hobo_target:
-                doc_id = next((pid for pid, p in chat.players.items() if p['role'] == '👨🏼‍⚕️ Дәрігер'), None)
-                if doc_id and doc_id in chat.players:
-                    hobo_visitors.append(get_full_name(chat.players[doc_id]))
-
-            if chat.lawyer_target == hobo_target:
-                lawyer_id = chat.lawyer_id
-                if lawyer_id in chat.players:
-                    hobo_visitors.append(get_full_name(chat.players[lawyer_id]))
-
-            if chat.maniac_target == hobo_target:
-                maniac_id = chat.maniac_id
-                if maniac_id in chat.players:
-                    hobo_visitors.append(get_full_name(chat.players[maniac_id]))
-
-            if chat.lover_target_id == hobo_target:
-                lover_id = chat.lover_id
-                if lover_id in chat.players:
-                    hobo_visitors.append(get_full_name(chat.players[lover_id]))
+            for pid, cond in checks:
+                if cond and pid in chat.players:
+                    hobo_visitors.append(get_full_name(chat.players[pid]))
 
             try:
-                if lang == 'kz':
-                    if hobo_visitors:
-                        visitors_names = ', '.join(hobo_visitors)
-                        send_message(chat.hobo_id, f'Түнде сен {hobo_target_name} деген бөтелке алуға барып, {visitors_names} дегенді көрдің.')
-                    if not hobo_visitors:
-                        send_message(chat.hobo_id, f'Сен {hobo_target_name} дегенге бөтелке іздеуге барғанда, күдікті ештеңе байқаған жоқсың.')
-                if lang == 'ru':
-                    if hobo_visitors:
-                        visitors_names = ', '.join(hobo_visitors)
-                        send_message(chat.hobo_id, f'Ты пришёл ночью к {hobo_target_name} за бутылкой и увидел: {visitors_names}.')
-                    if not hobo_visitors:
-                        send_message(chat.hobo_id, f'Ты пришёл ночью к {hobo_target_name} за бутылкой, но ничего подозрительного не заметил.')
-            except Exception as e:
-                logging.error(f"Не удалось отправить сообщение бомжу {chat.hobo_id}: {e}")
-        try:
-            if hobo_target not in chat.players:
-                if lang == 'kz':
-                    send_message(chat.hobo_id, 'Сен бұл түні ешкімді жолықтырмадың.')
-                if lang == 'ru':
-                    send_message(chat.hobo_id, 'Ты никого не встретил этой ночью.')
-        except Exception as e:
-            logging.error(f"Не удалось отправить сообщение бомжу {chat.hobo_id} о пустой встрече: {e}")
+                if hobo_visitors:
+                    visitors = ", ".join(hobo_visitors)
+                    texts = {
+                        "kz": f"Сен түнде {hobo_target_name} дегенге барып, мыналарды көрдің: {visitors}.",
+                        "ru": f"Ты пришёл ночью к {hobo_target_name} и увидел: {visitors}.",
+                        "uz": f"Sen tunda {hobo_target_name} yoniga borib, bularni ko‘rding: {visitors}.",
+                        "id": f"Kamu datang ke {hobo_target_name} malam hari dan melihat: {visitors}."
+                    }
+                else:
+                    texts = {
+                        "kz": f"Сен {hobo_target_name} дегенге бардың, бірақ ештеңе күдікті көрмедің.",
+                        "ru": f"Ты пришёл к {hobo_target_name}, но ничего подозрительного не заметил.",
+                        "uz": f"Sen {hobo_target_name} yoniga bording, ammo hech narsa ko‘rmading.",
+                        "id": f"Kamu datang ke {hobo_target_name}, tapi tidak melihat hal mencurigakan."
+                    }
 
+                send_message(chat.hobo_id, texts.get(lang, texts["ru"]))
+            except:
+                pass
 
 def send_night_actions(chat):
-    """Отправляет кнопки для выполнения ночных действий в зависимости от роли игрока с учетом языка."""
-    lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
-    gun_enabled = chat_settings.get(chat.chat_id, {}).get("gun_buff", True)  # ✅ Проверяем настройку пистолета
+    """Отправляет кнопки ночных действий."""
+    lang = chat_settings.get(chat.chat_id, {}).get("language", "ru")
+    gun_enabled = chat_settings.get(chat.chat_id, {}).get("gun_buff", True)
+
+    TEXT = {
+        "mafia": {
+            "ru": "Кого сделаем жертвой?",
+            "kz": "Кімді құрбан етеміз?",
+            "uz": "Kimni qurbon qilamiz?",
+            "id": "Siapa yang akan kita bunuh?"
+        },
+        "doctor": {
+            "ru": "Кого будем лечить?",
+            "kz": "Кімді емдейміз?",
+            "uz": "Kimni davolaymiz?",
+            "id": "Siapa yang akan disembuhkan?"
+        },
+        "hobo": {
+            "ru": "К кому пойдём искать бутылку?",
+            "kz": "Кімге бөтелке іздеп барамыз?",
+            "uz": "Kimga shisha izlab boramiz?",
+            "id": "Ke siapa kita mencari botol?"
+        },
+        "lover": {
+            "ru": "Кому доставим удовольствие?",
+            "kz": "Кімге ләззат береміз?",
+            "uz": "Kimni yo‘ldan uramiz?",
+            "id": "Siapa yang akan digoda?"
+        },
+        "lawyer": {
+            "ru": "Кого защитим?",
+            "kz": "Кімді қорғаймыз?",
+            "uz": "Kimni himoya qilamiz?",
+            "id": "Siapa yang akan dilindungi?"
+        },
+        "maniac": {
+            "ru": "Кого убьём?",
+            "kz": "Кімді өлтіреміз?",
+            "uz": "Kimni o‘ldiramiz?",
+            "id": "Siapa yang akan dibunuh?"
+        },
+        "gun": {
+            "ru": "🔫 В кого целишься?",
+            "kz": "🔫 Кімді көздейсің?",
+            "uz": "🔫 Kimga nishon olasan?",
+            "id": "🔫 Siapa yang kamu bidik?"
+        }
+    }
 
     for player_id, player in chat.players.items():
         if not chat.game_running:
             break
 
         try:
-            if player['role'] in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон']:
-                if lang == 'kz':
-                    list_btn(chat.players, player_id, 'мафия', 'Кімді құрбан етеміз?', 'м')
-                if lang == 'ru':
-                    list_btn(chat.players, player_id, 'мафия', 'Кого сделаем жертвой?', 'м')
+            role = player['role']
 
-            if player['role'] == '🕵🏼 Комиссар':
+            if role in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон']:
+                list_btn(chat.players, player_id, 'мафия', TEXT["mafia"][lang], 'м')
+
+            if role == '🕵🏼 Комиссар':
                 send_sheriff_menu(chat, player_id)
 
-            if player['role'] == '👨🏼‍⚕️ Дәрігер':
-                if lang == 'kz':
-                    list_btn(chat.players, player_id, 'доктор', 'Кімді емдейміз?', 'д')
-                if lang == 'ru':
-                    list_btn(chat.players, player_id, 'доктор', 'Кого будем лечить?', 'д')
+            if role == '👨🏼‍⚕️ Дәрігер':
+                list_btn(chat.players, player_id, 'доктор', TEXT["doctor"][lang], 'д')
 
-            if player['role'] == '🧙‍♂️ Қаңғыбас':
-                players_btn = types.InlineKeyboardMarkup()
-                for key, val in chat.players.items():
-                    if key != player_id and val['role'] != 'dead' and key != chat.previous_hobo_target:
-                        players_btn.add(types.InlineKeyboardButton(val['name'], callback_data=f'{key}_б'))
+            if role == '🧙‍♂️ Қаңғыбас':
+                list_btn(chat.players, player_id, 'hobo', TEXT["hobo"][lang], 'б')
 
-                if lang == 'kz':
-                    send_message(player_id, "Кімге бөтелке іздеп барамыз?", reply_markup=players_btn)
-                if lang == 'ru':
-                    send_message(player_id, "К кому пойдём искать бутылку?", reply_markup=players_btn)
+            if role == '💃🏼 Көңілдес':
+                list_btn(chat.players, player_id, 'lover', TEXT["lover"][lang], 'л')
 
-            if player['role'] == '💃🏼 Көңілдес':
-                players_btn = types.InlineKeyboardMarkup()
-                for key, val in chat.players.items():
-                    if key != player_id and val['role'] != 'dead' and (chat.previous_lover_target_id is None or key != chat.previous_lover_target_id):
-                        players_btn.add(types.InlineKeyboardButton(val['name'], callback_data=f'{key}_л'))
+            if role == '👨🏼‍💼 Қорғаушы':
+                list_btn(chat.players, player_id, 'lawyer', TEXT["lawyer"][lang], 'а')
 
-                if lang == 'kz':
-                    send_message(player_id, "Кімге ләззат береміз?", reply_markup=players_btn)
-                if lang == 'ru':
-                    send_message(player_id, "Кому доставим удовольствие?", reply_markup=players_btn)
+            if role == '🔪 Жауыз':
+                list_btn(chat.players, player_id, 'maniac', TEXT["maniac"][lang], 'мк')
 
-            if player['role'] == '👨🏼‍💼 Қорғаушы':
-                players_btn = types.InlineKeyboardMarkup()
-                for key, val in chat.players.items():
-                    if key != player_id and val['role'] != 'dead' and key != chat.previous_lawyer_target:
-                        players_btn.add(types.InlineKeyboardButton(val['name'], callback_data=f'{key}_а'))
-
-                if lang == 'kz':
-                    send_message(player_id, "Кімді қорғаймыз?", reply_markup=players_btn)
-                if lang == 'ru':
-                    send_message(player_id, "Кого защитим?", reply_markup=players_btn)
-
-            if player['role'] == '🔪 Жауыз':
-                if lang == 'kz':
-                    list_btn(chat.players, player_id, 'маньяк', 'Кімді атасың?', 'мк')
-                if lang == 'ru':
-                    list_btn(chat.players, player_id, 'маньяк', 'Кого убьём?', 'мк')
-
-            # ✅ Проверяем включен ли пистолет в настройках чата
             if gun_enabled:
                 profile = get_or_create_profile(player_id, player['name'])
-                if profile['gun'] > 0 and not profile['gun_used'] and player['role'] != 'dead':
-                    players_btn = types.InlineKeyboardMarkup()
-                    for key, val in chat.players.items():
-                        if key != player_id and val['role'] != 'dead':
-                            players_btn.add(types.InlineKeyboardButton(val['name'], callback_data=f'{key}_gun'))
-
-                    if lang == 'kz':
-                        send_message(player_id, "🔫 Кімді көздейсің?", reply_markup=players_btn)
-                    if lang == 'ru':
-                        send_message(player_id, "🔫 В кого целишься?", reply_markup=players_btn)
+                if profile['gun'] > 0 and not profile['gun_used'] and role != 'dead':
+                    list_btn(chat.players, player_id, 'gun', TEXT["gun"][lang], 'gun')
 
         except Exception as e:
-            logging.error(f"Не удалось отправить сообщение игроку {player_id}: {e}")
+            logging.error(f"Ошибка отправки ночных действий {player_id}: {e}")
+
+
 
 
 # Обновленный код для функции game_cycle
@@ -6970,7 +7987,11 @@ async def game_cycle(chat_id):
                 caption = f'🌞 *{day_count}-ші күн*\nКүн шығып, өткен түнде төгілген қанды қатыртады...'
             if lang == 'ru':
                 caption = f'🌞 *День {day_count}*\nВосход солнца подсвечивает кровь, пролитую прошлой ночью...'
-
+            if lang == 'uz':
+                caption = f'🌞 *{day_count}-kun*\nQuyosh chiqib, kecha to‘kilgan qonni yoritadi...'
+            if lang == 'id':
+                caption = f'🌞 *Hari ke-{day_count}*\nMatahari terbit, menerangi darah yang tertumpah semalam...'
+                
             bot.send_photo(
                 chat_id,
                 'https://t.me/ProfileChaekBot/29561',
@@ -7116,13 +8137,16 @@ def skip_vote_handler(call):
         return
 
     lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
-    anon = chat_settings.get(chat.chat_id, {}).get("anonymous_voting", True)
 
     if not chat.is_voting_time:  
-        bot.answer_callback_query(
-            call.id,
-            "Дауыс беру қазір мүмкін емес." if lang == 'kz' else "Голосование сейчас недоступно."
-        )
+        if lang == 'kz':
+            bot.answer_callback_query(call.id, text="Дауыс беру қазір мүмкін емес.")
+        elif lang == 'ru':
+            bot.answer_callback_query(call.id, text="Голосование сейчас недоступно.")
+        elif lang == 'uz':
+            bot.answer_callback_query(call.id, text="Ovoz berish hozir mavjud emas.")
+        elif lang == 'id':
+            bot.answer_callback_query(call.id, text="Pemungutan suara tidak tersedia saat ini.")
         return
 
     if 'vote_counts' not in chat.__dict__:
@@ -7132,48 +8156,40 @@ def skip_vote_handler(call):
 
     # Блокировка от Көңілдес
     if player.get('voting_blocked', False) and not player.get('healed_from_lover', False):
-        bot.answer_callback_query(
-            call.id,
-            "💃🏼 Көңілдес «Маған кел, бәрін ұмыт...» – деп ән салды" if lang == 'kz'
-            else "💃🏼 Любовница поёт: «Иди ко мне, забудь всё...»"
-        )
+        if lang == 'kz':
+            bot.answer_callback_query(call.id, text="💃🏼 Көңілдес «Маған кел, бәрін ұмыт...» – деп ән салды")
+        elif lang == 'ru':
+            bot.answer_callback_query(call.id, text="💃🏼 Любовница поёт: «Иди ко мне, забудь всё...»")
+        elif lang == 'uz':
+            bot.answer_callback_query(call.id, text="💃🏼 Sevgili «Keling menga, hamma narsani unuting...» deb qo'shiq aytdi")
+        elif lang == 'id':
+            bot.answer_callback_query(call.id, text="💃🏼 Kekasih bernyanyi: «Datanglah padaku, lupakan segalanya...»")
         return
 
     if not player.get('has_voted', False):
         chat.vote_counts['skip'] = chat.vote_counts.get('skip', 0) + 1
         player['has_voted'] = True
 
-        # Сообщение игроку
-        bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text=(
-                "🚷 Сіз дауыс беруді өткізіп жіберуді шештіңіз" if lang == 'kz'
-                else "🚷 Вы решили пропустить голосование"
-            )
-        )
+        if lang == 'kz':
+            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="🚷 Сіз дауыс беруді өткізіп жіберуді шештіңіз")
+        elif lang == 'ru':
+            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="🚷 Вы решили пропустить голосование")
+        elif lang == 'uz':
+            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="🚷 Siz ovoz berishdan o'tkazib yuborishga qaror qildingiz")
+        elif lang == 'id':
+            bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, text="🚷 Anda memutuskan untuk melewatkan pemungutan suara")
 
-        # Формируем имена
         full_name = get_full_name(player)
         voter_link = f"[{full_name}](tg://user?id={from_id})"
 
-        # --- ТОЧНО КАК В ОБЫЧНОМ "АНОНИМНОМ" ГОЛОСОВАНИИ ---
-        if anon:
-            # КАК У ТЕБЯ В VOTE:
-            # "Ник дауыс берді" / "Ник проголосовал"
-            if lang == 'kz':
-                text = f"{voter_link} дауыс берді"
-            else:
-                text = f"{voter_link} проголосовал"
-        else:
-            # Неанонимный вариант (видно что пропуск)
-            if lang == 'kz':
-                text = f"🚷 {voter_link} ешкімді аспауды ұсынады"
-            else:
-                text = f"🚷 {voter_link} предлогает пропустить голосование"
-
-        send_message(chat_id, text, parse_mode="Markdown")
-
+        if lang == 'kz':
+            send_message(chat_id, f"🚷 {voter_link} ешкімді аспауды ұсынады", parse_mode="Markdown")
+        elif lang == 'ru':
+            send_message(chat_id, f"🚷 {voter_link} предлагает никого не вешать", parse_mode="Markdown")
+        elif lang == 'uz':
+            send_message(chat_id, f"🚷 {voter_link} hech kimni osmaslikni taklif qiladi", parse_mode="Markdown")
+        elif lang == 'id':
+            send_message(chat_id, f"🚷 {voter_link} mengusulkan untuk tidak menggantung siapapun", parse_mode="Markdown")
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -7200,7 +8216,14 @@ def callback_handler(call):
     player = chat.players.get(from_id)
 
     if player['role'] == 'dead':
-        bot.answer_callback_query(call.id, text="⛔️ Сен өлдің!" if lang == 'kz' else "⛔️ Вы мертвы!")
+        if lang == 'kz':
+            bot.answer_callback_query(call.id, text="⛔️ Сен өлдің!")
+        elif lang == 'ru':
+            bot.answer_callback_query(call.id, text="⛔️ Вы мертвы!")
+        elif lang == 'uz':
+            bot.answer_callback_query(call.id, text="⛔️ Siz o'ldingiz!")
+        elif lang == 'id':
+            bot.answer_callback_query(call.id, text="⛔️ Anda sudah mati!")
         return
 
     if chat.confirm_votes.get('player_id') == from_id:
@@ -7208,14 +8231,28 @@ def callback_handler(call):
 
     # Проверка блокировки голосования, если игрока выбрала любовница
     if player.get('voting_blocked', False) and not player.get('healed_from_lover', False):
-        bot.answer_callback_query(call.id, text="💃🏼 Менімен бірге бәрін ұмыт..." if lang == 'kz' else "💃🏼 Со мной все забывается...")
+        if lang == 'kz':
+            bot.answer_callback_query(call.id, text="💃🏼 Менімен бірге бәрін ұмыт...")
+        elif lang == 'ru':
+            bot.answer_callback_query(call.id, text="💃🏼 Со мной все забывается...")
+        elif lang == 'uz':
+            bot.answer_callback_query(call.id, text="💃🏼 Men bilan birga hamma narsani unuting...")
+        elif lang == 'id':
+            bot.answer_callback_query(call.id, text="💃🏼 Bersamaku, semuanya terlupakan...")
         return
 
     # Проверка, нажимал ли игрок кнопку недавно
     if from_id in vote_timestamps:
         last_vote_time = vote_timestamps[from_id]
         if current_time - last_vote_time < 1:
-            bot.answer_callback_query(call.id, text="Дауыс қабылданды!" if lang == 'kz' else "Голос принят!")
+            if lang == 'kz':
+                bot.answer_callback_query(call.id, text="Дауыс қабылданды!")
+            elif lang == 'ru':
+                bot.answer_callback_query(call.id, text="Голос принят!")
+            elif lang == 'uz':
+                bot.answer_callback_query(call.id, text="Ovoz qabul qilindi!")
+            elif lang == 'id':
+                bot.answer_callback_query(call.id, text="Suara diterima!")
             return
 
     vote_timestamps[from_id] = current_time
@@ -7233,46 +8270,115 @@ def callback_handler(call):
 
         if action in ['yes', 'no']:
             if from_id == chat.confirm_votes['player_id']:
-                bot.answer_callback_query(call.id, text="Сіз дауыс бере алмайсыз." if lang == 'kz' else "Вы не можете голосовать.")
+                if lang == 'kz':
+                    bot.answer_callback_query(call.id, text="Сіз дауыс бере алмайсыз.")
+                elif lang == 'ru':
+                    bot.answer_callback_query(call.id, text="Вы не можете голосовать.")
+                elif lang == 'uz':
+                    bot.answer_callback_query(call.id, text="Siz ovoz bera olmaysiz.")
+                elif lang == 'id':
+                    bot.answer_callback_query(call.id, text="Anda tidak bisa memberikan suara.")
                 return
             time.sleep(1.5)
 
         if len(data_parts) == 2 and data_parts[1] == 'gun':
             if not chat.is_night:
-                bot.answer_callback_query(call.id, text="🔫 Пистолетті тек түнде қолдануға болады!" if lang == 'kz' else "🔫 Пистолет можно использовать только ночью!")
+                if lang == 'kz':
+                    bot.answer_callback_query(call.id, text="🔫 Пистолетті тек түнде қолдануға болады!")
+                elif lang == 'ru':
+                    bot.answer_callback_query(call.id, text="🔫 Пистолет можно использовать только ночью!")
+                elif lang == 'uz':
+                    bot.answer_callback_query(call.id, text="🔫 Pistoletni faqat kechasi ishlatish mumkin!")
+                elif lang == 'id':
+                    bot.answer_callback_query(call.id, text="🔫 Pistol hanya bisa digunakan pada malam hari!")
                 return
                 
             profile = get_or_create_profile(from_id, player['name'])
             if profile['gun'] <= 0 or profile['gun_used']:
-                bot.answer_callback_query(call.id, text="❌ Сізде қолданатын пистолет жоқ!" if lang == 'kz' else "❌ У вас нет доступного пистолета!")
+                if lang == 'kz':
+                    bot.answer_callback_query(call.id, text="❌ Сізде қолданатын пистолет жоқ!")
+                elif lang == 'ru':
+                    bot.answer_callback_query(call.id, text="❌ У вас нет доступного пистолета!")
+                elif lang == 'uz':
+                    bot.answer_callback_query(call.id, text="❌ Sizda foydalanish mumkin bo'lgan pistolet yo'q!")
+                elif lang == 'id':
+                    bot.answer_callback_query(call.id, text="❌ Anda tidak memiliki pistol yang tersedia!")
                 return
                 
             target_id = int(data_parts[0])
             if target_id not in chat.players or chat.players[target_id]['role'] == 'dead':
-                bot.answer_callback_query(call.id, text="❌ Мақсат қолжетімсіз!" if lang == 'kz' else "❌ Цель недоступна!")
+                if lang == 'kz':
+                    bot.answer_callback_query(call.id, text="❌ Мақсат қолжетімсіз!")
+                elif lang == 'ru':
+                    bot.answer_callback_query(call.id, text="❌ Цель недоступна!")
+                elif lang == 'uz':
+                    bot.answer_callback_query(call.id, text="❌ Maqsad mavjud emas!")
+                elif lang == 'id':
+                    bot.answer_callback_query(call.id, text="❌ Target tidak tersedia!")
                 return
                 
             profile['gun'] -= 1
             chat.gun_kill = (target_id, chat.players[target_id])
             
             target_name = chat.players[target_id]['name']
-            bot.edit_message_text(chat_id=call.message.chat.id, 
-                                message_id=call.message.message_id, 
-                                text=f"🔫 {target_name} дегенді көздедің" if lang == 'kz' else f"🔫 Вы прицелились в {target_name}")
+            if lang == 'kz':
+                bot.edit_message_text(chat_id=call.message.chat.id, 
+                                    message_id=call.message.message_id, 
+                                    text=f"🔫 {target_name} дегенді көздедің")
+            elif lang == 'ru':
+                bot.edit_message_text(chat_id=call.message.chat.id, 
+                                    message_id=call.message.message_id, 
+                                    text=f"🔫 Вы прицелились в {target_name}")
+            elif lang == 'uz':
+                bot.edit_message_text(chat_id=call.message.chat.id, 
+                                    message_id=call.message.message_id, 
+                                    text=f"🔫 Siz {target_name} ni nishonladingiz")
+            elif lang == 'id':
+                bot.edit_message_text(chat_id=call.message.chat.id, 
+                                    message_id=call.message.message_id, 
+                                    text=f"🔫 Anda membidik {target_name}")
             
-            send_message(chat.chat_id, "🔫 Біреу түнде қаруын қолданды..." if lang == 'kz' else "🔫 Кто-то использовал оружие ночью...", parse_mode="Markdown")
+            if lang == 'kz':
+                send_message(chat.chat_id, "🔫 Біреу түнде қаруын қолданды...", parse_mode="Markdown")
+            elif lang == 'ru':
+                send_message(chat.chat_id, "🔫 Кто-то использовал оружие ночью...", parse_mode="Markdown")
+            elif lang == 'uz':
+                send_message(chat.chat_id, "🔫 Kimdir kechasi qurolidan foydalandi...", parse_mode="Markdown")
+            elif lang == 'id':
+                send_message(chat.chat_id, "🔫 Seseorang menggunakan senjata di malam hari...", parse_mode="Markdown")
             
-            bot.answer_callback_query(call.id, text="✅ Таңдауыңыз қабылданды!" if lang == 'kz' else "✅ Ваш выбор принят!")
+            if lang == 'kz':
+                bot.answer_callback_query(call.id, text="✅ Таңдауыңыз қабылданды!")
+            elif lang == 'ru':
+                bot.answer_callback_query(call.id, text="✅ Ваш выбор принят!")
+            elif lang == 'uz':
+                bot.answer_callback_query(call.id, text="✅ Tanlovingiz qabul qilindi!")
+            elif lang == 'id':
+                bot.answer_callback_query(call.id, text="✅ Pilihan Anda diterima!")
             return
 
         # Проверка, что действия Комиссара доступны только ночью
         if role == '🕵🏼 Комиссар':
             if not chat.is_night:
-                bot.answer_callback_query(call.id, text="Әрекеттер тек түнде қол жетімді." if lang == 'kz' else "Действия доступны только ночью.")
+                if lang == 'kz':
+                    bot.answer_callback_query(call.id, text="Әрекеттер тек түнде қол жетімді.")
+                elif lang == 'ru':
+                    bot.answer_callback_query(call.id, text="Действия доступны только ночью.")
+                elif lang == 'uz':
+                    bot.answer_callback_query(call.id, text="Harakatlar faqat kechasi mavjud.")
+                elif lang == 'id':
+                    bot.answer_callback_query(call.id, text="Tindakan hanya tersedia pada malam hari.")
                 return
 
             if chat.players[from_id].get('action_taken', False):
-                bot.answer_callback_query(call.id, text="Сіз бүгін кешке өз таңдауыңызды жасадыңыз." if lang == 'kz' else "Вы уже сделали свой выбор сегодня вечером.")
+                if lang == 'kz':
+                    bot.answer_callback_query(call.id, text="Сіз бүгін кешке өз таңдауыңызды жасадыңыз.")
+                elif lang == 'ru':
+                    bot.answer_callback_query(call.id, text="Вы уже сделали свой выбор сегодня вечером.")
+                elif lang == 'uz':
+                    bot.answer_callback_query(call.id, text="Siz bugun kechqurun o'z tanlovingizni qilgansiz.")
+                elif lang == 'id':
+                    bot.answer_callback_query(call.id, text="Anda sudah membuat pilihan Anda malam ini.")
                 return
 
         # В callback_handler, внутри условия if call.data.startswith('confirm'):
@@ -7286,23 +8392,38 @@ def callback_handler(call):
             lang = chat_settings.get(chat_id, {}).get("language", "kz")
 
             if chat.chat_id != chat_id:
-                bot.answer_callback_query(call.id,
-                    text="Сіз бұл дауыс беруге қатыса алмайсыз" if lang == 'kz'
-                    else "Вы не можете участвовать в этом голосовании")
+                if lang == 'kz':
+                    bot.answer_callback_query(call.id, text="Сіз бұл дауыс беруге қатыса алмайсыз")
+                elif lang == 'ru':
+                    bot.answer_callback_query(call.id, text="Вы не можете участвовать в этом голосовании")
+                elif lang == 'uz':
+                    bot.answer_callback_query(call.id, text="Siz bu ovoz berishda qatnasha olmaysiz")
+                elif lang == 'id':
+                    bot.answer_callback_query(call.id, text="Anda tidak dapat berpartisipasi dalam pemungutan suara ini")
                 return
 
             if not getattr(chat, 'confirm_votes_active', True):
-                bot.answer_callback_query(call.id,
-                    text="Дауыс беру аяқталды" if lang == 'kz'
-                    else "Голосование завершено")
+                if lang == 'kz':
+                    bot.answer_callback_query(call.id, text="Дауыс беру аяқталды")
+                elif lang == 'ru':
+                    bot.answer_callback_query(call.id, text="Голосование завершено")
+                elif lang == 'uz':
+                    bot.answer_callback_query(call.id, text="Ovoz berish yakunlandi")
+                elif lang == 'id':
+                    bot.answer_callback_query(call.id, text="Pemungutan suara telah selesai")
                 return
 
     # Защита от повторного нажатия на ту же кнопку
             previous_vote = chat.confirm_votes['voted'].get(from_id)
             if previous_vote == vote_confirmation:
-                bot.answer_callback_query(call.id,
-                    text="Сіз бұл таңдау жасадыңыз" if lang == 'kz'
-                    else "Вы уже выбрали это")
+                if lang == 'kz':
+                    bot.answer_callback_query(call.id, text="Сіз бұл таңдау жасадыңыз")
+                elif lang == 'ru':
+                    bot.answer_callback_query(call.id, text="Вы уже выбрали это")
+                elif lang == 'uz':
+                    bot.answer_callback_query(call.id, text="Siz bu tanlovni qilgansiz")
+                elif lang == 'id':
+                    bot.answer_callback_query(call.id, text="Anda sudah memilih ini")
                 return
 
     # Убираем предыдущий голос
@@ -7337,9 +8458,14 @@ def callback_handler(call):
                     )
                     confirm_vote_timestamps[chat.chat_id] = time.time()
 
-                bot.answer_callback_query(call.id,
-                    text="Дауыс қабылданды!" if lang == 'kz'
-                    else "Голос принят!")
+                if lang == 'kz':
+                    bot.answer_callback_query(call.id, text="Дауыс қабылданды!")
+                elif lang == 'ru':
+                    bot.answer_callback_query(call.id, text="Голос принят!")
+                elif lang == 'uz':
+                    bot.answer_callback_query(call.id, text="Ovoz qabul qilindi!")
+                elif lang == 'id':
+                    bot.answer_callback_query(call.id, text="Suara diterima!")
             except Exception as e:
                 logging.error(f"Ошибка при обновлении клавиатуры голосования: {e}")
 
@@ -7368,55 +8494,127 @@ def callback_handler(call):
 
                 if player_role == '🕵🏼 Комиссар' and action == 'ш':
                     if not chat.is_night:
-                        bot.answer_callback_query(call.id, text="Әрекеттер тек түнде қол жетімді." if lang == 'kz' else "Действия доступны только ночью.")
+                        if lang == 'kz':
+                            bot.answer_callback_query(call.id, text="Әрекеттер тек түнде қол жетімді.")
+                        elif lang == 'ru':
+                            bot.answer_callback_query(call.id, text="Действия доступны только ночью.")
+                        elif lang == 'uz':
+                            bot.answer_callback_query(call.id, text="Harakatlar faqat kechasi mavjud.")
+                        elif lang == 'id':
+                            bot.answer_callback_query(call.id, text="Tindakan hanya tersedia pada malam hari.")
                         return
                     if chat.players[from_id].get('action_taken', False):
-                        bot.answer_callback_query(call.id, text="Сіз бүгін кешке өз таңдауыңызды жасадыңыз." if lang == 'kz' else "Вы уже сделали свой выбор сегодня вечером.")
+                        if lang == 'kz':
+                            bot.answer_callback_query(call.id, text="Сіз бүгін кешке өз таңдауыңызды жасадыңыз.")
+                        elif lang == 'ru':
+                            bot.answer_callback_query(call.id, text="Вы уже сделали свой выбор сегодня вечером.")
+                        elif lang == 'uz':
+                            bot.answer_callback_query(call.id, text="Siz bugun kechqurun o'z tanlovingizni qilgansiz.")
+                        elif lang == 'id':
+                            bot.answer_callback_query(call.id, text="Anda sudah membuat pilihan Anda malam ini.")
                         return
 
                     chat.sheriff_check = target_id
                     chat.players[from_id]['action_taken'] = True
                     if chat.last_sheriff_menu_id:
                         try:
-                            bot.edit_message_text(chat_id=from_id, message_id=chat.last_sheriff_menu_id, 
-                                                 text=f"Сен тексеруге бардың {chat.players[target_id]['name']}" if lang == 'kz' 
-                                                 else f"Вы пошли проверять {chat.players[target_id]['name']}")
+                            if lang == 'kz':
+                                bot.edit_message_text(chat_id=from_id, message_id=chat.last_sheriff_menu_id, 
+                                                     text=f"Сен тексеруге бардың {chat.players[target_id]['name']}")
+                            elif lang == 'ru':
+                                bot.edit_message_text(chat_id=from_id, message_id=chat.last_sheriff_menu_id, 
+                                                     text=f"Вы пошли проверять {chat.players[target_id]['name']}")
+                            elif lang == 'uz':
+                                bot.edit_message_text(chat_id=from_id, message_id=chat.last_sheriff_menu_id, 
+                                                     text=f"Siz {chat.players[target_id]['name']} ni tekshirishga bordingiz")
+                            elif lang == 'id':
+                                bot.edit_message_text(chat_id=from_id, message_id=chat.last_sheriff_menu_id, 
+                                                     text=f"Anda pergi memeriksa {chat.players[target_id]['name']}")
                         except Exception as e:
                             logging.error(f"Ошибка при обновлении последнего меню Комиссара: {e}")
 
-                    send_message(chat.chat_id, "🕵🏼 *Комиссар* бұзақыларды іздеуге кетті..." if lang == 'kz' else "🕵🏼 *Комиссар* отправился искать преступников...", parse_mode="Markdown")
+                    if lang == 'kz':
+                        send_message(chat.chat_id, "🕵🏼 *Комиссар* бұзақыларды іздеуге кетті...", parse_mode="Markdown")
+                    elif lang == 'ru':
+                        send_message(chat.chat_id, "🕵🏼 *Комиссар* отправился искать преступников...", parse_mode="Markdown")
+                    elif lang == 'uz':
+                        send_message(chat.chat_id, "🕵🏼 *Komissar* jinoyatchilarni izlashga ketdi...", parse_mode="Markdown")
+                    elif lang == 'id':
+                        send_message(chat.chat_id, "🕵🏼 *Komisaris* pergi mencari penjahat...", parse_mode="Markdown")
 
                     bot.edit_message_reply_markup(chat_id=from_id, message_id=chat.last_sheriff_menu_id, reply_markup=None)
 
                     if chat.sergeant_id and chat.sergeant_id in chat.players:
-                        sergeant_message = (f"🕵🏼 Комиссар {chat.players[from_id]['name']} дегенді тексеруге кеттің. {chat.players[target_id]['name']}." if lang == 'kz' 
-                                         else f"🕵🏼 Комиссар {chat.players[from_id]['name']} пошел проверять {chat.players[target_id]['name']}.")
+                        if lang == 'kz':
+                            sergeant_message = f"🕵🏼 Комиссар {chat.players[from_id]['name']} дегенді тексеруге кеттің. {chat.players[target_id]['name']}."
+                        elif lang == 'ru':
+                            sergeant_message = f"🕵🏼 Комиссар {chat.players[from_id]['name']} пошел проверять {chat.players[target_id]['name']}."
+                        elif lang == 'uz':
+                            sergeant_message = f"🕵🏼 Komissar {chat.players[from_id]['name']} {chat.players[target_id]['name']} ni tekshirishga ketti."
+                        elif lang == 'id':
+                            sergeant_message = f"🕵🏼 Komisaris {chat.players[from_id]['name']} pergi memeriksa {chat.players[target_id]['name']}."
                         send_message(chat.sergeant_id, sergeant_message)
 
                 elif player_role == '🕵🏼 Комиссар' and action == 'с':
                     if not chat.is_night:
-                        bot.answer_callback_query(call.id, text="Комиссарлардың әрекеттері тек түнде болады." if lang == 'kz' else "Действия комиссара доступны только ночью.")
+                        if lang == 'kz':
+                            bot.answer_callback_query(call.id, text="Комиссарлардың әрекеттері тек түнде болады.")
+                        elif lang == 'ru':
+                            bot.answer_callback_query(call.id, text="Действия комиссара доступны только ночью.")
+                        elif lang == 'uz':
+                            bot.answer_callback_query(call.id, text="Komissarning harakatlari faqat kechasi bo'ladi.")
+                        elif lang == 'id':
+                            bot.answer_callback_query(call.id, text="Tindakan komisaris hanya tersedia pada malam hari.")
                         return
                     if chat.players[from_id].get('action_taken', False):
-                        bot.answer_callback_query(call.id, text="Сіз бүгін кешке өз таңдауыңызды жасадыңыз." if lang == 'kz' else "Вы уже сделали свой выбор сегодня вечером.")
+                        if lang == 'kz':
+                            bot.answer_callback_query(call.id, text="Сіз бүгін кешке өз таңдауыңызды жасадыңыз.")
+                        elif lang == 'ru':
+                            bot.answer_callback_query(call.id, text="Вы уже сделали свой выбор сегодня вечером.")
+                        elif lang == 'uz':
+                            bot.answer_callback_query(call.id, text="Siz bugun kechqurun o'z tanlovingizni qilgansiz.")
+                        elif lang == 'id':
+                            bot.answer_callback_query(call.id, text="Anda sudah membuat pilihan Anda malam ini.")
                         return
 
                     chat.sheriff_shoot = target_id
                     chat.players[from_id]['action_taken'] = True
                     if chat.last_sheriff_menu_id:
                         try:
-                            bot.edit_message_text(chat_id=from_id, message_id=chat.last_sheriff_menu_id, 
-                                               text=f"Сіз өлтіруге бардыңыз {chat.players[target_id]['name']}" if lang == 'kz' 
-                                               else f"Вы пошли стрелять в {chat.players[target_id]['name']}")
+                            if lang == 'kz':
+                                bot.edit_message_text(chat_id=from_id, message_id=chat.last_sheriff_menu_id, 
+                                                   text=f"Сіз өлтіруге бардыңыз {chat.players[target_id]['name']}")
+                            elif lang == 'ru':
+                                bot.edit_message_text(chat_id=from_id, message_id=chat.last_sheriff_menu_id, 
+                                                   text=f"Вы пошли стрелять в {chat.players[target_id]['name']}")
+                            elif lang == 'uz':
+                                bot.edit_message_text(chat_id=from_id, message_id=chat.last_sheriff_menu_id, 
+                                                   text=f"Siz {chat.players[target_id]['name']} ni o'ldirishga bordingiz")
+                            elif lang == 'id':
+                                bot.edit_message_text(chat_id=from_id, message_id=chat.last_sheriff_menu_id, 
+                                                   text=f"Anda pergi menembak {chat.players[target_id]['name']}")
                         except Exception as e:
                             logging.error(f"Ошибка при обновлении последнего меню Комиссара: {e}")
 
-                    send_message(chat.chat_id, "🕵🏼 *Комиссар* тапаншасын оқтай бастады..." if lang == 'kz' else "🕵🏼 *Комиссар* начал стрелять...", parse_mode="Markdown")
+                    if lang == 'kz':
+                        send_message(chat.chat_id, "🕵🏼 *Комиссар* тапаншасын оқтай бастады...", parse_mode="Markdown")
+                    elif lang == 'ru':
+                        send_message(chat.chat_id, "🕵🏼 *Комиссар* начал стрелять...", parse_mode="Markdown")
+                    elif lang == 'uz':
+                        send_message(chat.chat_id, "🕵🏼 *Komissar* pistoletini otishni boshladi...", parse_mode="Markdown")
+                    elif lang == 'id':
+                        send_message(chat.chat_id, "🕵🏼 *Komisaris* mulai menembak...", parse_mode="Markdown")
                     bot.edit_message_reply_markup(chat_id=from_id, message_id=chat.last_sheriff_menu_id, reply_markup=None)
 
                     if chat.sergeant_id and chat.sergeant_id in chat.players:
-                        sergeant_message = (f"🕵🏼 Комиссар {chat.players[from_id]['name']} оқ атады {chat.players[target_id]['name']}." if lang == 'kz' 
-                                         else f"🕵🏼 Комиссар {chat.players[from_id]['name']} выстрелил в {chat.players[target_id]['name']}.")
+                        if lang == 'kz':
+                            sergeant_message = f"🕵🏼 Комиссар {chat.players[from_id]['name']} оқ атады {chat.players[target_id]['name']}."
+                        elif lang == 'ru':
+                            sergeant_message = f"🕵🏼 Комиссар {chat.players[from_id]['name']} выстрелил в {chat.players[target_id]['name']}."
+                        elif lang == 'uz':
+                            sergeant_message = f"🕵🏼 Komissar {chat.players[from_id]['name']} {chat.players[target_id]['name']} ga o'q uzdi."
+                        elif lang == 'id':
+                            sergeant_message = f"🕵🏼 Komisaris {chat.players[from_id]['name']} menembak {chat.players[target_id]['name']}."
                         send_message(chat.sergeant_id, sergeant_message)
 
                 elif player_role in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон'] and action == 'м':
@@ -7424,66 +8622,153 @@ def callback_handler(call):
                         return
 
                     if target_id not in chat.players or chat.players[target_id]['role'] == 'dead':
-                        bot.answer_callback_query(call.id, "Мақсат қолжетімсіз." if lang == 'kz' else "Цель недоступна.")
+                        if lang == 'kz':
+                            bot.answer_callback_query(call.id, "Мақсат қолжетімсіз.")
+                        elif lang == 'ru':
+                            bot.answer_callback_query(call.id, "Цель недоступна.")
+                        elif lang == 'uz':
+                            bot.answer_callback_query(call.id, "Maqsad mavjud emas.")
+                        elif lang == 'id':
+                            bot.answer_callback_query(call.id, "Target tidak tersedia.")
                         return
 
                     victim_name = f"{chat.players[target_id]['name']} {chat.players[target_id].get('last_name', '')}".strip()
-                    bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
-                                        text=f"Сіз дауыс бердіңіз {victim_name}" if lang == 'kz' 
-                                        else f"Вы проголосовали за {victim_name}")
+                    if lang == 'kz':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                            text=f"Сіз дауыс бердіңіз {victim_name}")
+                    elif lang == 'ru':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                            text=f"Вы проголосовали за {victim_name}")
+                    elif lang == 'uz':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                            text=f"Siz {victim_name} uchun ovoz berdingiz")
+                    elif lang == 'id':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                            text=f"Anda memilih untuk {victim_name}")
 
                     if from_id not in chat.mafia_votes:
                         chat.mafia_votes[from_id] = target_id
                         voter_name = f"{chat.players[from_id]['name']} {chat.players[from_id].get('last_name', '')}".strip()
         
                         if player_role == '🤵🏻‍♂️ Дон':
-                            send_message_to_mafia(chat, f"🤵🏻‍♂️ *Дон* [{voter_name}](tg://user?id={from_id}) дауыс берді {victim_name}" if lang == 'kz' 
-                                              else f"🤵🏻‍♂️ *Дон* [{voter_name}](tg://user?id={from_id}) проголосовал за {victim_name}")
-                            for player_id, player in chat.players.items():
-                                if player['role'] == '👨🏼‍💼 Қорғаушы':
-                                    send_message(player_id, f"🤵🏻‍♂️ Дон ??? дауыс берді {victim_name}" if lang == 'kz' 
-                                              else f"🤵🏻‍♂️ Дон ??? проголосовал за {victim_name}")
+                            if lang == 'kz':
+                                send_message_to_mafia(chat, f"🤵🏻‍♂️ *Дон* [{voter_name}](tg://user?id={from_id}) дауыс берді {victim_name}")
+                                for player_id, player in chat.players.items():
+                                    if player['role'] == '👨🏼‍💼 Қорғаушы':
+                                        send_message(player_id, f"🤵🏻‍♂️ Дон ??? дауыс берді {victim_name}")
+                            elif lang == 'ru':
+                                send_message_to_mafia(chat, f"🤵🏻‍♂️ *Дон* [{voter_name}](tg://user?id={from_id}) проголосовал за {victim_name}")
+                                for player_id, player in chat.players.items():
+                                    if player['role'] == '👨🏼‍💼 Қорғаушы':
+                                        send_message(player_id, f"🤵🏻‍♂️ Дон ??? проголосовал за {victim_name}")
+                            elif lang == 'uz':
+                                send_message_to_mafia(chat, f"🤵🏻‍♂️ *Don* [{voter_name}](tg://user?id={from_id}) {victim_name} uchun ovoz berdi")
+                                for player_id, player in chat.players.items():
+                                    if player['role'] == '👨🏼‍💼 Қорғаушы':
+                                        send_message(player_id, f"🤵🏻‍♂️ Don ??? {victim_name} uchun ovoz berdi")
+                            elif lang == 'id':
+                                send_message_to_mafia(chat, f"🤵🏻‍♂️ *Don* [{voter_name}](tg://user?id={from_id}) memilih untuk {victim_name}")
+                                for player_id, player in chat.players.items():
+                                    if player['role'] == '👨🏼‍💼 Қорғаушы':
+                                        send_message(player_id, f"🤵🏻‍♂️ Don ??? memilih untuk {victim_name}")
                         else:
-                            send_message_to_mafia(chat, f"🤵🏻 Мафия [{voter_name}](tg://user?id={from_id}) дауыс берді {victim_name}" if lang == 'kz' 
-                                              else f"🤵🏻 Мафия [{voter_name}](tg://user?id={from_id}) проголосовал за {victim_name}")
-                            for player_id, player in chat.players.items():
-                                if player['role'] == '👨🏼‍💼 Қорғаушы':
-                                    send_message(player_id, f"🤵🏻 Мафия ??? дауыс берді {victim_name}" if lang == 'kz' 
-                                              else f"🤵🏻 Мафия ??? проголосовал за {victim_name}")
+                            if lang == 'kz':
+                                send_message_to_mafia(chat, f"🤵🏻 Мафия [{voter_name}](tg://user?id={from_id}) дауыс берді {victim_name}")
+                                for player_id, player in chat.players.items():
+                                    if player['role'] == '👨🏼‍💼 Қорғаушы':
+                                        send_message(player_id, f"🤵🏻 Мафия ??? дауыс берді {victim_name}")
+                            elif lang == 'ru':
+                                send_message_to_mafia(chat, f"🤵🏻 Мафия [{voter_name}](tg://user?id={from_id}) проголосовал за {victim_name}")
+                                for player_id, player in chat.players.items():
+                                    if player['role'] == '👨🏼‍💼 Қорғаушы':
+                                        send_message(player_id, f"🤵🏻 Мафия ??? проголосовал за {victim_name}")
+                            elif lang == 'uz':
+                                send_message_to_mafia(chat, f"🤵🏻 *Mafiya* [{voter_name}](tg://user?id={from_id}) {victim_name} uchun ovoz berdi")
+                                for player_id, player in chat.players.items():
+                                    if player['role'] == '👨🏼‍💼 Қорғаушы':
+                                        send_message(player_id, f"🤵🏻 Mafiya ??? {victim_name} uchun ovoz berdi")
+                            elif lang == 'id':
+                                send_message_to_mafia(chat, f"🤵🏻 *Mafia* [{voter_name}](tg://user?id={from_id}) memilih untuk {victim_name}")
+                                for player_id, player in chat.players.items():
+                                    if player['role'] == '👨🏼‍💼 Қорғаушы':
+                                        send_message(player_id, f"🤵🏻 Mafia ??? memilih untuk {victim_name}")
                     else:
-                        bot.answer_callback_query(call.id, "Сіз дауыс беріп қойғансыз." if lang == 'kz' else "Вы уже голосовали.")
+                        if lang == 'kz':
+                            bot.answer_callback_query(call.id, "Сіз дауыс беріп қойғансыз.")
+                        elif lang == 'ru':
+                            bot.answer_callback_query(call.id, "Вы уже голосовали.")
+                        elif lang == 'uz':
+                            bot.answer_callback_query(call.id, "Siz allaqachon ovoz bergansiz.")
+                        elif lang == 'id':
+                            bot.answer_callback_query(call.id, "Anda sudah memilih.")
 
                 elif player_role == '👨🏼‍⚕️ Дәрігер' and action == 'д':
                     if not handle_night_action(call, chat, player_role):
                         return
 
                     victim_name = f"{chat.players[target_id]['name']} {chat.players[target_id].get('last_name', '')}".strip()
-                    bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
-                                       text=f"Сіз емдеуді таңдадыңыз {victim_name}" if lang == 'kz' 
-                                       else f"Вы выбрали лечение для {victim_name}")
+                    if lang == 'kz':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                           text=f"Сіз емдеуді таңдадыңыз {victim_name}")
+                    elif lang == 'ru':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                           text=f"Вы выбрали лечение для {victim_name}")
+                    elif lang == 'uz':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                           text=f"Siz {victim_name} uchun davolashni tanladingiz")
+                    elif lang == 'id':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                           text=f"Anda memilih perawatan untuk {victim_name}")
     
                     if target_id == from_id:
                         if player.get('self_healed', False):  
-                            bot.answer_callback_query(call.id, text="Сіз өзіңізді емдедіңіз, басқа ойыншыны таңдаңыз." if lang == 'kz' 
-                                                    else "Вы уже лечили себя, выберите другого игрока.")
+                            if lang == 'kz':
+                                bot.answer_callback_query(call.id, text="Сіз өзіңізді емдедіңіз, басқа ойыншыны таңдаңыз.")
+                            elif lang == 'ru':
+                                bot.answer_callback_query(call.id, text="Вы уже лечили себя, выберите другого игрока.")
+                            elif lang == 'uz':
+                                bot.answer_callback_query(call.id, text="Siz o'zingizni davolagansiz, boshqa o'yinchini tanlang.")
+                            elif lang == 'id':
+                                bot.answer_callback_query(call.id, text="Anda sudah menyembuhkan diri sendiri, pilih pemain lain.")
                             return
                         else:
                             player['self_healed'] = True  
     
                     chat.doc_target = target_id
-                    send_message(chat.chat_id, "👨🏼‍⚕️ *Дәрігер* біреудің өмірін құтқаруға үшін шықты…" if lang == 'kz' 
-                                  else "👨🏼‍⚕️ *Доктор* отправился спасать чью-то жизнь…", parse_mode="Markdown")
+                    if lang == 'kz':
+                        send_message(chat.chat_id, "👨🏼‍⚕️ *Дәрігер* біреудің өмірін құтқаруға үшін шықты…", parse_mode="Markdown")
+                    elif lang == 'ru':
+                        send_message(chat.chat_id, "👨🏼‍⚕️ *Доктор* отправился спасать чью-то жизнь…", parse_mode="Markdown")
+                    elif lang == 'uz':
+                        send_message(chat.chat_id, "👨🏼‍⚕️ *Shifokor* kimningdir hayotini qutqatish uchun chiqdi…", parse_mode="Markdown")
+                    elif lang == 'id':
+                        send_message(chat.chat_id, "👨🏼‍⚕️ *Dokter* pergi menyelamatkan nyawa seseorang…", parse_mode="Markdown")
 
                 elif player_role == '🧙‍♂️ Қаңғыбас' and action == 'б':
                     if not handle_night_action(call, chat, player_role):
                         return
                     target_name = f"{chat.players[target_id]['name']} {chat.players[target_id].get('last_name', '')}".strip()
                     chat.hobo_target = target_id
-                    bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
-                                       text=f"Сіз бөтелке алуға бардыңыз {target_name}" if lang == 'kz' 
-                                       else f"Вы пошли за бутылкой к {target_name}")
-                    send_message(chat.chat_id, "🧙‍♂️ *Қаңғыбас* бөтелке іздеп, біреудің үйіне кетті…" if lang == 'kz' 
-                                  else "🧙‍♂️ *Бомж* отправился искать бутылку в чужом доме…", parse_mode="Markdown")
+                    if lang == 'kz':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                           text=f"Сіз бөтелке алуға бардыңыз {target_name}")
+                    elif lang == 'ru':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                           text=f"Вы пошли за бутылкой к {target_name}")
+                    elif lang == 'uz':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                           text=f"Siz {target_name} dan butilka olishga bordingiz")
+                    elif lang == 'id':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                           text=f"Anda pergi mengambil botol ke {target_name}")
+                    if lang == 'kz':
+                        send_message(chat.chat_id, "🧙‍♂️ *Қаңғыбас* бөтелке іздеп, біреудің үйіне кетті…", parse_mode="Markdown")
+                    elif lang == 'ru':
+                        send_message(chat.chat_id, "🧙‍♂️ *Бомж* отправился искать бутылку в чужом доме…", parse_mode="Markdown")
+                    elif lang == 'uz':
+                        send_message(chat.chat_id, "🧙‍♂️ *Bomj* butilka izlab, kimningdir uyiga ketti…", parse_mode="Markdown")
+                    elif lang == 'id':
+                        send_message(chat.chat_id, "🧙‍♂️ *Gelandangan* pergi mencari botol ke rumah orang lain…", parse_mode="Markdown")
 
                 elif player_role == '💃🏼 Көңілдес' and action == 'л':
                     if not handle_night_action(call, chat, player_role):
@@ -7491,11 +8776,26 @@ def callback_handler(call):
                     chat.previous_lover_target_id = chat.lover_target_id
                     chat.lover_target_id = target_id
                     target_name = f"{chat.players[chat.lover_target_id]['name']} {chat.players[chat.lover_target_id].get('last_name', '')}".strip()
-                    bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
-                                       text=f"Сен ләззат сыйлауға кеттің {target_name}" if lang == 'kz' 
-                                       else f"Вы отправились доставлять удовольствие {target_name}")
-                    send_message(chat.chat_id, "💃🏼 *Көңілдес* өз таңдауына қонаққа кетті..." if lang == 'kz' 
-                                  else "💃🏼 *Любовница* отправилась к своему выбору...", parse_mode="Markdown")
+                    if lang == 'kz':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                           text=f"Сен ләззат сыйлауға кеттің {target_name}")
+                    elif lang == 'ru':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                           text=f"Вы отправились доставлять удовольствие {target_name}")
+                    elif lang == 'uz':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                           text=f"Siz {target_name} ga zavq yetkazishga kettiz")
+                    elif lang == 'id':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                           text=f"Anda pergi memberikan kesenangan kepada {target_name}")
+                    if lang == 'kz':
+                        send_message(chat.chat_id, "💃🏼 *Көңілдес* өз таңдауына қонаққа кетті...", parse_mode="Markdown")
+                    elif lang == 'ru':
+                        send_message(chat.chat_id, "💃🏼 *Любовница* отправилась к своему выбору...", parse_mode="Markdown")
+                    elif lang == 'uz':
+                        send_message(chat.chat_id, "💃🏼 *Sevgili* o'z tanloviga mehmon bo'lishga ketdi...", parse_mode="Markdown")
+                    elif lang == 'id':
+                        send_message(chat.chat_id, "💃🏼 *Kekasih* pergi menemui pilihannya...", parse_mode="Markdown")
                     logging.info(f"Предыдущая цель любовницы обновлена: {chat.previous_lover_target_id}")
                     logging.info(f"Текущая цель любовницы: {chat.lover_target_id}")
                 
@@ -7504,55 +8804,110 @@ def callback_handler(call):
                         return
                     chat.lawyer_target = target_id
                     target_name = f"{chat.players[chat.lawyer_target]['name']} {chat.players[chat.lawyer_target].get('last_name', '')}".strip()
-                    bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
-                                       text=f"Сіз қорғауды таңдадыңыз {target_name}" if lang == 'kz' 
-                                       else f"Вы выбрали защиту для {target_name}")
-                    send_message(chat.chat_id, "👨🏼‍💼 *Қорғаушы* қорғау үшін клиент іздейді..." if lang == 'kz' 
-                                  else "👨🏼‍💼 *Адвокат* ищет клиента для защиты...", parse_mode="Markdown")
+                    if lang == 'kz':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                           text=f"Сіз қорғауды таңдадыңыз {target_name}")
+                    elif lang == 'ru':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                           text=f"Вы выбрали защиту для {target_name}")
+                    elif lang == 'uz':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                           text=f"Siz {target_name} uchun himoyani tanladingiz")
+                    elif lang == 'id':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                           text=f"Anda memilih perlindungan untuk {target_name}")
+                    if lang == 'kz':
+                        send_message(chat.chat_id, "👨🏼‍💼 *Қорғаушы* қорғау үшін клиент іздейді...", parse_mode="Markdown")
+                    elif lang == 'ru':
+                        send_message(chat.chat_id, "👨🏼‍💼 *Адвокат* ищет клиента для защиты...", parse_mode="Markdown")
+                    elif lang == 'uz':
+                        send_message(chat.chat_id, "👨🏼‍💼 *Advokat* himoya uchun mijoz izlaydi...", parse_mode="Markdown")
+                    elif lang == 'id':
+                        send_message(chat.chat_id, "👨🏼‍💼 *Pengacara* mencari klien untuk perlindungan...", parse_mode="Markdown")
 
                 elif player_role == '🔪 Жауыз' and action == 'мк':
                     if not handle_night_action(call, chat, player_role):
                         return
                     chat.maniac_target = target_id
                     target_name = f"{chat.players[chat.maniac_target]['name']} {chat.players[chat.maniac_target].get('last_name', '')}".strip()
-                    bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
-                                       text=f"Сіз өлтіруді таңдадыңыз {target_name}" if lang == 'kz' 
-                                       else f"Вы выбрали убийство для {target_name}")
-                    send_message(chat.chat_id, "🔪 *Жауыз* түнгі аңшылыққа шықты..." if lang == 'kz' 
-                                  else "🔪 *Маньяк* отправился на ночную охоту...", parse_mode="Markdown")
+                    if lang == 'kz':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                           text=f"Сіз өлтіруді таңдадыңыз {target_name}")
+                    elif lang == 'ru':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                           text=f"Вы выбрали убийство для {target_name}")
+                    elif lang == 'uz':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                           text=f"Siz {target_name} ni o'ldirishni tanladingiz")
+                    elif lang == 'id':
+                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
+                                           text=f"Anda memilih pembunuhan untuk {target_name}")
+                    if lang == 'kz':
+                        send_message(chat.chat_id, "🔪 *Жауыз* түнгі аңшылыққа шықты...", parse_mode="Markdown")
+                    elif lang == 'ru':
+                        send_message(chat.chat_id, "🔪 *Маньяк* отправился на ночную охоту...", parse_mode="Markdown")
+                    elif lang == 'uz':
+                        send_message(chat.chat_id, "🔪 *Maniyak* kechki ovga chiqdi...", parse_mode="Markdown")
+                    elif lang == 'id':
+                        send_message(chat.chat_id, "🔪 *Maniak* pergi berburu di malam hari...", parse_mode="Markdown")
 
                 elif action == 'vote':
                     if not chat.is_voting_time:
-                        bot.answer_callback_query(call.id,
-                            "Қазіргі уақытта дауыс беру мүмкін емес." if lang == 'kz'
-                            else "Сейчас нельзя голосовать."
-                        )
+                        if lang == 'kz':
+                            bot.answer_callback_query(call.id, "Қазіргі уақытта дауыс беру мүмкін емес.")
+                        elif lang == 'ru':
+                            bot.answer_callback_query(call.id, "Сейчас нельзя голосовать.")
+                        elif lang == 'uz':
+                            bot.answer_callback_query(call.id, "Hozir ovoz berish mumkin emas.")
+                        elif lang == 'id':
+                            bot.answer_callback_query(call.id, "Saat ini tidak bisa memilih.")
                         return
 
                     if 'vote_counts' not in chat.__dict__:
                         chat.vote_counts = {}
 
                     if player.get('voting_blocked', False) and not player.get('healed_from_lover', False):
-                        bot.answer_callback_query(
-                            call.id,
-                            "💃🏼 Менімен бірге бәрін ұмыт..." if lang == 'kz'
-                            else "💃🏼 Со мной все забывается..."
-                        )
+                        if lang == 'kz':
+                            bot.answer_callback_query(call.id, "💃🏼 Менімен бірге бәрін ұмыт...")
+                        elif lang == 'ru':
+                            bot.answer_callback_query(call.id, "💃🏼 Со мной все забывается...")
+                        elif lang == 'uz':
+                            bot.answer_callback_query(call.id, "💃🏼 Men bilan birga hamma narsani unuting...")
+                        elif lang == 'id':
+                            bot.answer_callback_query(call.id, "💃🏼 Bersamaku, semuanya terlupakan...")
                         return
 
                     if not chat.players[from_id].get('has_voted', False):
-
         # фиксируем голос
                         victim_name = f"{chat.players[target_id]['name']} {chat.players[target_id].get('last_name', '')}".strip()
                         chat.vote_counts[target_id] = chat.vote_counts.get(target_id, 0) + 1
                         chat.players[from_id]['has_voted'] = True
 
         # сообщение игроку
-                        bot.edit_message_text(
-                            chat_id=call.message.chat.id,
-                            message_id=call.message.message_id,
-                            text=("Сіз таңдадыңыз " if lang == 'kz' else "Вы выбрали ") + victim_name
-                        )
+                        if lang == 'kz':
+                            bot.edit_message_text(
+                                chat_id=call.message.chat.id,
+                                message_id=call.message.message_id,
+                                text=f"Сіз таңдадыңыз {victim_name}"
+                            )
+                        elif lang == 'ru':
+                            bot.edit_message_text(
+                                chat_id=call.message.chat.id,
+                                message_id=call.message.message_id,
+                                text=f"Вы выбрали {victim_name}"
+                            )
+                        elif lang == 'uz':
+                            bot.edit_message_text(
+                                chat_id=call.message.chat.id,
+                                message_id=call.message.message_id,
+                                text=f"Siz {victim_name} ni tanladingiz"
+                            )
+                        elif lang == 'id':
+                            bot.edit_message_text(
+                                chat_id=call.message.chat.id,
+                                message_id=call.message.message_id,
+                                text=f"Anda memilih {victim_name}"
+                            )
 
         # ник кто голосует
                         voter_name = f"[{chat.players[from_id]['name']} {chat.players[from_id].get('last_name', '')}](tg://user?id={from_id})".strip()
@@ -7564,40 +8919,86 @@ def callback_handler(call):
 
                         if anon:
             # АНОНИМНОЕ
-                            text = (
-                                f"{voter_name} дауыс берді" if lang == 'kz'
-                                else f"{voter_name} проголосовал"
-                            )
+                            if lang == 'kz':
+                                text = f"{voter_name} дауыс берді"
+                            elif lang == 'ru':
+                                text = f"{voter_name} проголосовал"
+                            elif lang == 'uz':
+                                text = f"{voter_name} ovoz berdi"
+                            elif lang == 'id':
+                                text = f"{voter_name} memberikan suara"
                         else:
             # НЕАНОНИМНОЕ
-                            text = (
-                                f"{voter_name} өз дауысын {target_name} үшін берді" if lang == 'kz'
-                                else f"{voter_name} проголосовал за {target_name}"
-                            )
+                            if lang == 'kz':
+                                text = f"{voter_name} өз дауысын {target_name} үшін берді"
+                            elif lang == 'ru':
+                                text = f"{voter_name} проголосовал за {target_name}"
+                            elif lang == 'uz':
+                                text = f"{voter_name} {target_name} uchun ovoz berdi"
+                            elif lang == 'id':
+                                text = f"{voter_name} memilih untuk {target_name}"
 
                         send_message(chat_id, text, parse_mode="Markdown")
 
             elif action == 'check':
                 if not chat.is_night:
-                    bot.answer_callback_query(call.id, text="Әрекеттер тек түнде қол жетімді." if lang == 'kz' 
-                                            else "Действия доступны только ночью.")
+                    if lang == 'kz':
+                        bot.answer_callback_query(call.id, text="Әрекеттер тек түнде қол жетімді.")
+                    elif lang == 'ru':
+                        bot.answer_callback_query(call.id, text="Действия доступны только ночью.")
+                    elif lang == 'uz':
+                        bot.answer_callback_query(call.id, text="Harakatlar faqat kechasi mavjud.")
+                    elif lang == 'id':
+                        bot.answer_callback_query(call.id, text="Tindakan hanya tersedia pada malam hari.")
                     return
                 if chat.players[from_id].get('action_taken', False):
-                    bot.answer_callback_query(call.id, text="Сіз бүгін кешке өз таңдауыңызды жасадыңыз." if lang == 'kz' 
-                                            else "Вы уже сделали свой выбор сегодня вечером.")
+                    if lang == 'kz':
+                        bot.answer_callback_query(call.id, text="Сіз бүгін кешке өз таңдауыңызды жасадыңыз.")
+                    elif lang == 'ru':
+                        bot.answer_callback_query(call.id, text="Вы уже сделали свой выбор сегодня вечером.")
+                    elif lang == 'uz':
+                        bot.answer_callback_query(call.id, text="Siz bugun kechqurun o'z tanlovingizni qilgansiz.")
+                    elif lang == 'id':
+                        bot.answer_callback_query(call.id, text="Anda sudah membuat pilihan Anda malam ini.")
                     return
-                list_btn(chat.players, from_id, '🕵🏼 Комиссар', 'Кімді тексереміз?' if lang == 'kz' else 'Кого проверить?', 'ш', message_id=chat.last_sheriff_menu_id)
+                if lang == 'kz':
+                    list_btn(chat.players, from_id, '🕵🏼 Комиссар', 'Кімді тексереміз?', 'ш', message_id=chat.last_sheriff_menu_id)
+                elif lang == 'ru':
+                    list_btn(chat.players, from_id, '🕵🏼 Комиссар', 'Кого проверить?', 'ш', message_id=chat.last_sheriff_menu_id)
+                elif lang == 'uz':
+                    list_btn(chat.players, from_id, '🕵🏼 Комиссар', 'Kimni tekshiramiz?', 'ш', message_id=chat.last_sheriff_menu_id)
+                elif lang == 'id':
+                    list_btn(chat.players, from_id, '🕵🏼 Комиссар', 'Siapa yang akan diperiksa?', 'ш', message_id=chat.last_sheriff_menu_id)
 
             elif action == 'shoot':
                 if not chat.is_night:
-                    bot.answer_callback_query(call.id, text="Әрекеттер тек түнде қол жетімді." if lang == 'kz' 
-                                            else "Действия доступны только ночью.")
+                    if lang == 'kz':
+                        bot.answer_callback_query(call.id, text="Әрекеттер тек түнде қол жетімді.")
+                    elif lang == 'ru':
+                        bot.answer_callback_query(call.id, text="Действия доступны только ночью.")
+                    elif lang == 'uz':
+                        bot.answer_callback_query(call.id, text="Harakatlar faqat kechasi mavjud.")
+                    elif lang == 'id':
+                        bot.answer_callback_query(call.id, text="Tindakan hanya tersedia pada malam hari.")
                     return
                 if chat.players[from_id].get('action_taken', False):
-                    bot.answer_callback_query(call.id, text="Сіз бүгін кешке өз таңдауыңызды жасадыңыз." if lang == 'kz' 
-                                            else "Вы уже сделали свой выбор сегодня вечером.")
+                    if lang == 'kz':
+                        bot.answer_callback_query(call.id, text="Сіз бүгін кешке өз таңдауыңызды жасадыңыз.")
+                    elif lang == 'ru':
+                        bot.answer_callback_query(call.id, text="Вы уже сделали свой выбор сегодня вечером.")
+                    elif lang == 'uz':
+                        bot.answer_callback_query(call.id, text="Siz bugun kechqurun o'z tanlovingizni qilgansiz.")
+                    elif lang == 'id':
+                        bot.answer_callback_query(call.id, text="Anda sudah membuat pilihan Anda malam ini.")
                     return
-                list_btn(chat.players, from_id, '🕵🏼 Комиссар', 'Кімді атамыз?' if lang == 'kz' else 'Кого застрелить?', 'с', message_id=chat.last_sheriff_menu_id)
+                if lang == 'kz':
+                    list_btn(chat.players, from_id, '🕵🏼 Комиссар', 'Кімді атамыз?', 'с', message_id=chat.last_sheriff_menu_id)
+                elif lang == 'ru':
+                    list_btn(chat.players, from_id, '🕵🏼 Комиссар', 'Кого застрелить?', 'с', message_id=chat.last_sheriff_menu_id)
+                elif lang == 'uz':
+                    list_btn(chat.players, from_id, '🕵🏼 Комиссар', 'Kimni o ldiramiz?', 'с', message_id=chat.last_sheriff_menu_id)
+                elif lang == 'id':
+                    list_btn(chat.players, from_id, '🕵🏼 Комиссар', 'Siapa yang akan ditembak?', 'с', message_id=chat.last_sheriff_menu_id)
 
     except Exception as e:
         logging.error(f"Ошибка в callback_handler: {e}")
@@ -7632,69 +9033,115 @@ def handle_player_leave(message):
 @bot.message_handler(func=lambda message: message.chat.type == 'private')
 def handle_private_message(message):
     user_id = message.from_user.id
-    chat = next((chat for chat in chat_list.values() if user_id in chat.players or user_id in chat.dead_last_words), None)
+    chat = next(
+        (chat for chat in chat_list.values()
+         if user_id in chat.players or user_id in chat.dead_last_words),
+        None
+    )
 
-    if chat:
-        lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
+    if not chat:
+        return
 
-        if not chat.game_running:
-            logging.info(f"Игра завершена, игнорируем сообщение от {user_id}")
-            return
+    lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
 
-        # Последние слова мертвого игрока
-        if user_id in chat.dead_last_words:
-            player_name = f"{chat.dead_last_words.pop(user_id)} {message.from_user.last_name or ''}".strip()
-            last_words = message.text
-            if last_words:
-                player_link = f"[{player_name}](tg://user?id={user_id})"
-                try:
-                    if lang == 'kz':
-                        send_message(chat.chat_id, f"Тұрғындардың біреуі {player_link} өлер алдында айғайлағанын есітіпті:\n_{last_words}_", parse_mode="Markdown")
-                    if lang == 'ru':
-                        send_message(chat.chat_id, f"Кто-то из жителей услышал предсмертный крик {player_link}:\n_{last_words}_", parse_mode="Markdown")
-                except Exception as e:
-                    logging.error(f"Не удалось отправить последние слова игрока {user_id} в чат: {e}")
-                
-                try:
-                    if lang == 'kz':
-                        send_message(user_id, "*Хабарлама қабылданып, чатқа жіберілді.*", parse_mode='Markdown')
-                    if lang == 'ru':
-                        send_message(user_id, "*Сообщение получено и отправлено в чат.*", parse_mode='Markdown')
-                except Exception as e:
-                    logging.error(f"Не удалось отправить подтверждение игроку {user_id}: {e}")
-            return
+    if not chat.game_running:
+        logging.info(f"Игра завершена, игнорируем сообщение от {user_id}")
+        return
 
-        # Пересылка сообщений между Комиссаром и Сержантом только ночью
-        if chat.is_night:
-            if user_id == chat.sheriff_id and chat.sergeant_id in chat.players:
-                sheriff_name = f"{chat.players[user_id]['name']} {chat.players[user_id].get('last_name', '')}".strip()
-                try:
-                    if lang == 'kz':
-                        send_message(chat.sergeant_id, f"🕵🏼 *Комиссар {sheriff_name}*:\n{message.text}", parse_mode='Markdown')
-                    if lang == 'ru':
-                        send_message(chat.sergeant_id, f"🕵🏼 *Комиссар {sheriff_name}*:\n{message.text}", parse_mode='Markdown')
-                except Exception as e:
-                    logging.error(f"Не удалось отправить сообщение от Комиссара {user_id} к Сержанту {chat.sergeant_id}: {e}")
+    # ================== ПОСЛЕДНИЕ СЛОВА ==================
+    if user_id in chat.dead_last_words:
+        player_name = f"{chat.dead_last_words.pop(user_id)} {message.from_user.last_name or ''}".strip()
+        last_words = message.text
 
-            elif user_id == chat.sergeant_id and chat.sheriff_id in chat.players:
-                sergeant_name = f"{chat.players[user_id]['name']} {chat.players[user_id].get('last_name', '')}".strip()
-                try:
-                    if lang == 'kz':
-                        send_message(chat.sheriff_id, f"👮🏼 *Сержант {sergeant_name}*:\n{message.text}", parse_mode='Markdown')
-                    if lang == 'ru':
-                        send_message(chat.sheriff_id, f"👮🏼 *Сержант {sergeant_name}*:\n{message.text}", parse_mode='Markdown')
-                except Exception as e:
-                    logging.error(f"Не удалось отправить сообщение от Сержанта {user_id} к Комиссару {chat.sheriff_id}: {e}")
+        if last_words:
+            player_link = f"[{player_name}](tg://user?id={user_id})"
 
-            elif chat.players[user_id]['role'] in ['🤵🏻‍♂️ Дон', '🤵🏻 Мафия']:
-                mafia_name = f"{chat.players[user_id]['name']}"
-                mafia_last_name = chat.players[user_id].get('last_name', '')
-                try:
-                    notify_mafia(chat, mafia_name, mafia_last_name, message.text, user_id)
-                except Exception as e:
-                    logging.error(f"Не удалось отправить сообщение от мафии/Дона {user_id}: {e}")
+            try:
+                if lang == 'kz':
+                    send_message(
+                        chat.chat_id,
+                        f"Тұрғындардың біреуі {player_link} өлер алдында айғайлағанын есітіпті:\n_{last_words}_",
+                        parse_mode="Markdown"
+                    )
+                if lang == 'ru':
+                    send_message(
+                        chat.chat_id,
+                        f"Кто-то из жителей услышал предсмертный крик {player_link}:\n_{last_words}_",
+                        parse_mode="Markdown"
+                    )
+                if lang == 'uz':
+                    send_message(
+                        chat.chat_id,
+                        f"Aholidan biri {player_link} ning o‘lim oldidagi so‘zlarini eshitibdi:\n_{last_words}_",
+                        parse_mode="Markdown"
+                    )
+                if lang == 'id':
+                    send_message(
+                        chat.chat_id,
+                        f"Seseorang dari penduduk mendengar teriakan terakhir {player_link}:\n_{last_words}_",
+                        parse_mode="Markdown"
+                    )
+            except Exception as e:
+                logging.error(f"Не удалось отправить последние слова игрока {user_id} в чат: {e}")
 
-executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)  # Ограничиваем до 3 потоков
+            try:
+                if lang == 'kz':
+                    send_message(user_id, "*Хабарлама қабылданып, чатқа жіберілді.*", parse_mode='Markdown')
+                if lang == 'ru':
+                    send_message(user_id, "*Сообщение получено и отправлено в чат.*", parse_mode='Markdown')
+                if lang == 'uz':
+                    send_message(user_id, "*Xabar qabul qilindi va chatga yuborildi.*", parse_mode='Markdown')
+                if lang == 'id':
+                    send_message(user_id, "*Pesan diterima dan dikirim ke chat.*", parse_mode='Markdown')
+            except Exception as e:
+                logging.error(f"Не удалось отправить подтверждение игроку {user_id}: {e}")
+
+        return
+
+    # ================== НОЧНЫЕ ЛИЧНЫЕ СООБЩЕНИЯ ==================
+    if chat.is_night:
+
+        # Комиссар -> Сержант
+        if user_id == chat.sheriff_id and chat.sergeant_id in chat.players:
+            sheriff_name = f"{chat.players[user_id]['name']} {chat.players[user_id].get('last_name', '')}".strip()
+            try:
+                if lang == 'kz':
+                    send_message(chat.sergeant_id, f"🕵🏼 *Комиссар {sheriff_name}*:\n{message.text}", parse_mode='Markdown')
+                if lang == 'ru':
+                    send_message(chat.sergeant_id, f"🕵🏼 *Комиссар {sheriff_name}*:\n{message.text}", parse_mode='Markdown')
+                if lang == 'uz':
+                    send_message(chat.sergeant_id, f"🕵🏼 *Komissar {sheriff_name}*:\n{message.text}", parse_mode='Markdown')
+                if lang == 'id':
+                    send_message(chat.sergeant_id, f"🕵🏼 *Komisaris {sheriff_name}*:\n{message.text}", parse_mode='Markdown')
+            except Exception as e:
+                logging.error(f"Не удалось отправить сообщение Комиссара {user_id}: {e}")
+
+        # Сержант -> Комиссар
+        elif user_id == chat.sergeant_id and chat.sheriff_id in chat.players:
+            sergeant_name = f"{chat.players[user_id]['name']} {chat.players[user_id].get('last_name', '')}".strip()
+            try:
+                if lang == 'kz':
+                    send_message(chat.sheriff_id, f"👮🏼 *Сержант {sergeant_name}*:\n{message.text}", parse_mode='Markdown')
+                if lang == 'ru':
+                    send_message(chat.sheriff_id, f"👮🏼 *Сержант {sergeant_name}*:\n{message.text}", parse_mode='Markdown')
+                if lang == 'uz':
+                    send_message(chat.sheriff_id, f"👮🏼 *Serjant {sergeant_name}*:\n{message.text}", parse_mode='Markdown')
+                if lang == 'id':
+                    send_message(chat.sheriff_id, f"👮🏼 *Sersan {sergeant_name}*:\n{message.text}", parse_mode='Markdown')
+            except Exception as e:
+                logging.error(f"Не удалось отправить сообщение Сержанта {user_id}: {e}")
+
+        # Мафия / Дон
+        elif chat.players[user_id]['role'] in ['🤵🏻‍♂️ Дон', '🤵🏻 Мафия']:
+            mafia_name = chat.players[user_id]['name']
+            mafia_last_name = chat.players[user_id].get('last_name', '')
+            try:
+                notify_mafia(chat, mafia_name, mafia_last_name, message.text, user_id)
+            except Exception as e:
+                logging.error(f"Не удалось отправить сообщение мафии/Дона {user_id}: {e}")
+
+
+executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 
 def delete_message_in_thread(chat_id, message_id):
     def delete():
