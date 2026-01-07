@@ -6392,4 +6392,6 @@ def handle_message(message):
                 logging.info(f"Удаление сообщения днём от {user_id}: {message_type}")
                 delete_message_in_thread(chat_id, message.message_id)
 
-bot.skip_pending = Tru
+bot.skip_pending = True
+
+bot.infinity_polling()
