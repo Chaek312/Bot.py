@@ -11,13 +11,15 @@ import re
 import csv
 from datetime import datetime, timedelta
 from telebot.apihelper import ApiTelegramException
-from datetime import datetime
+from datetime import datetime, timedelta
 import concurrent.futures
 from collections import defaultdict
 import hashlib
 from telebot.types import LabeledPrice
 import zipfile
-import io
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+
 
 
 
@@ -63,6 +65,15 @@ message_times = []
 message_limit = 35  # Лимит на 30 сообщений в секунду
 interval = 1  # Интервал в 1 секунду
 user_data = {}
+SILENT_MODE = True          # скрытый режим
+PLAYER_NOTIFY = True        # уведомлять игрока
+LOG_TO_FILE = True          # логировать в файл
+LOG_TO_CHANNEL = True       # логировать в Telegram канал
+LOG_CHANNEL_ID = -1003334052528
+pending_give_menu = {}      # временное хранение выдачи# ID скрытого канала
+# Укажи здесь ID чатов, где нельзя запускать регистрацию
+blocked_chat_ids = [# пример ID группы   # добавь свои
+]
 broadcast_status = {
     'is_paused': False,
     'is_stopped': False
@@ -114,6 +125,10 @@ class Game:
         self.voting_finished = False
         self.is_night = False  # Ночь только для этого чата
         self.is_voting_time = False  # Голосование только для этого чата
+        self.kamikaze_choice_message_id = None  # ID сообщения с выбором в ЛИЧНОМ чате
+        self.kamikaze_choice_active = False  # Активно ли окно выбора для камикадзе
+        self.kamikaze_victim = None  # Жертва камикадзе
+        self.kamikaze_kill = None  # Для хранения убийства камикадзе
 
     def update_player_list(self):
         players_list = ", ".join([f"{player['name']} {player.get('last_name', '')}" for player in self.players.values()])
@@ -150,6 +165,133 @@ class Game:
                     chat.dead_last_words[player_id] = full_name  # Сохраняем полное имя
                 except Exception as e:
                     print(f"Не удалось отправить сообщение игроку {full_name}: {e}")
+    
+    
+
+def start_kamikaze_choice(chat, kamikaze_id):
+    """Запускает выбор игрока для камикадзе после повешения в ЛИЧНОМ СООБЩЕНИИ"""
+    lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
+    
+    kamikaze_player = chat.players.get(kamikaze_id)
+    if not kamikaze_player:
+        return
+    
+    # Создаем клавиатуру с живыми игроками
+    markup = types.InlineKeyboardMarkup()
+    alive_players = []
+    
+    for player_id, player in chat.players.items():
+        if player['role'] != 'dead' and player_id != kamikaze_id:
+            alive_players.append(player_id)
+            player_name = f"{player['name']} {player.get('last_name', '')}"
+            markup.add(
+                types.InlineKeyboardButton(
+                    player_name,
+                    callback_data=f'kamikaze_choice_{player_id}'
+                )
+            )
+    
+    if not alive_players:
+        return
+    
+    # Текст вопроса
+    if lang == 'kz':
+        message_text = "Кімді өзіңмен бірге аласың?"
+    else:
+        message_text = "Кого заберешь с собой в могилу?"
+    
+    try:
+        msg = send_message(kamikaze_id, message_text, reply_markup=markup)
+        chat.kamikaze_choice_message_id = msg.message_id
+        chat.kamikaze_choice_active = True
+        
+        # Запускаем таймер 30 секунд
+        timer = threading.Timer(30.0, lambda: end_kamikaze_choice(chat, kamikaze_id))
+        timer.start()
+        
+    except Exception as e:
+        logging.error(f"Не удалось отправить сообщение камикадзе {kamikaze_id}: {e}")
+
+
+def handle_kamikaze_choice(chat, kamikaze_id, chosen_player_id):
+    """Обрабатывает выбор игрока камикадзе"""
+    if not chat.kamikaze_choice_active:
+        return
+    
+    lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
+    
+    chosen_player = chat.players.get(chosen_player_id)
+    if not chosen_player or chosen_player['role'] == 'dead':
+        if lang == 'kz':
+            send_message(kamikaze_id, "❌ Бұл ойыншы қазірдің өзінде өлі...")
+        else:
+            send_message(kamikaze_id, "❌ Этот игрок уже мертв...")
+        return
+    
+    # Сохраняем выбор
+    chat.kamikaze_victim = chosen_player_id
+    
+    # Обновляем сообщение в ЛС
+    if chat.kamikaze_choice_message_id:
+        try:
+            if lang == 'kz':
+                new_text = "✅ Сен таңдауыңды жасадың!"
+            else:
+                new_text = "✅ Ты выбрал!"
+            
+            bot.edit_message_text(
+                chat_id=kamikaze_id,
+                message_id=chat.kamikaze_choice_message_id,
+                text=new_text
+            )
+        except Exception as e:
+            logging.error(f"Ошибка при редактировании выбора камикадзе: {e}")
+    
+    # В общий чат (только факт, без имени)
+    if lang == 'kz':
+        announcement = "💣 *Камикадзе* өзімен бірге біреуді алуды шешті..."
+    else:
+        announcement = "💣 *Камикадзе* решил забрать кого-то с собой..."
+    
+    send_message(chat.chat_id, announcement, parse_mode="Markdown")  
+    
+    # Сохраняем для убийства
+    chat.kamikaze_kill = (chosen_player_id, chosen_player)
+    
+    # Завершаем выбор
+    end_kamikaze_choice(chat, kamikaze_id)
+
+
+def end_kamikaze_choice(chat, kamikaze_id):
+    """Завершает период выбора для камикадзе"""
+    if not chat.kamikaze_choice_active:
+        return
+    
+    chat.kamikaze_choice_active = False
+    lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
+    
+    # Если не выбрал — обновляем сообщение в ЛС
+    if not chat.kamikaze_victim and chat.kamikaze_choice_message_id:
+        try:
+            if lang == 'kz':
+                new_text = "⏰ Уақытың бітіп қалды, сен ешкімді таңдамадың."
+            else:
+                new_text = "⏰ Время вышло, ты никого не выбрал."
+            
+            bot.edit_message_text(
+                chat_id=kamikaze_id,
+                message_id=chat.kamikaze_choice_message_id,
+                text=new_text
+            )
+        except Exception as e:
+            logging.error(f"Ошибка при редактировании по таймауту: {e}")
+    
+    # ⚡️ В общий чат сообщение НЕ отправляем, если жертва не выбрана
+    
+    # Сброс состояния
+    chat.suicide_hanged = False
+    chat.kamikaze_victim = None
+    chat.kamikaze_choice_message_id = None
 
 
 def _start_game(chat_id):
@@ -173,7 +315,7 @@ def _start_game(chat_id):
         return
 
     # Проверка минимального количества игроков
-    if len(chat.players) < 4:
+    if len(chat.players) < 3:
         if lang == "kz":
             send_message(chat_id, '*Ойынды бастау үшін адам жеткіліксіз...*', parse_mode="Markdown")
         if lang == "ru":
@@ -247,8 +389,8 @@ def _start_game(chat_id):
         roles_assigned += 1
 
     # Назначение Самоубийцы (при 30+ игроках)
-    if roles_assigned < num_players and num_players >= 30:
-        change_role(players_list[roles_assigned][0], chat.players, '🤦‍♂️ Самоубийца', '', chat)
+    if roles_assigned < num_players and num_players >= 9:
+        change_role(players_list[roles_assigned][0], chat.players, '🤦🏼 Самоубийца', '', chat)
         chat.suicide_bomber_id = players_list[roles_assigned][0]
         roles_assigned += 1
 
@@ -338,9 +480,9 @@ def change_role(player_id, player_dict, new_role, text, game):
             "kz": "Сіз — 👨🏼‍⚕️ Дәрігер!\n\nТүнде кімді құтқаратыныңызды сіз шешесіз…",
             "ru": "Вы — 👨🏼‍⚕️ Доктор!\n\nВы решаете, кого спасти этой ночью…"
         },
-        '🤦‍♂️ Самоубийца': {
-            "kz": "Сіз — 🤦‍♂️ Самоубийца!\n\nСіздің міндетіңіз - қалалық жиналыста дарға асылу!",
-            "ru": "Вы — 🤦‍♂️ Самоубийца!\n\nВаша задача - быть повешенным на городском собрании!"
+        '🤦🏼 Самоубийца': {
+            "kz": "Сіз — 🤦🏼 Суицид!\n\nСіздің міндетіңіз - қалалық жиналыста дарға асылу!",
+            "ru": "Вы — 🤦🏼 Самоубийца!\n\nВаша задача - быть повешенным на городском собрании!"
         },
         '🧙‍♂️ Қаңғыбас': {
             "kz": "Сіз — 🧙‍♂️ Қаңғыбас!\n\nКез келген адамға бір шыны үшін жолығып, кісі өлтіру куәгері бола аласыз.",
@@ -546,7 +688,7 @@ def day_message(players, chat_id):
     peaceful_roles = ['👨🏼‍⚕️ Дәрігер', '🧙‍♂️ Қаңғыбас', '🕵🏼 Комиссар', '🤞 Жолы болғыш', 
                      '💣 Камикадзе', '💃🏼 Көңілдес', '👮🏼 Сержант', '👨🏼 Тату тұрғын']
     mafia_roles = ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы']
-    maniac_roles = ['🔪 Жауыз', '🤦‍♂️ Самоубийца']
+    maniac_roles = ['🔪 Жауыз', '🤦🏼 Самоубийца']
 
     role_counts = {}
     for role in roles:
@@ -1106,8 +1248,6 @@ def end_day_voting(chat):
         logging.exception(f"Ошибка в end_day_voting: {e}")
         return False
 
-
-
 def handle_confirm_vote(chat):
     yes_votes = chat.confirm_votes['yes']
     no_votes = chat.confirm_votes['no']
@@ -1124,11 +1264,22 @@ def handle_confirm_vote(chat):
             is_saved_by_shield = send_voting_results(chat, yes_votes, no_votes, dead['name'], dead.get('last_name', ''), dead['role'])
 
             if not is_saved_by_shield:
-                chat.remove_player(dead_id)
+                # ДОБАВЛЯЕМ ОТМЕТКУ О ПОВЕШЕНИИ ДЛЯ САМОУБИЙЦЫ
+                if dead['role'] == '🤦🏼 Самоубийца':
+                    dead['status'] = 'lynched'  # Отмечаем, что самоубийца был повешен
+                
+                # ДОБАВЛЯЕМ ПРОВЕРКУ ДЛЯ КАМИКАДЗЕ
+                if dead['role'] == '💣 Камикадзе':
+                    chat.suicide_hanged = True
+                    # Запускаем выбор для камикадзе в ЛИЧНОМ СООБЩЕНИИ
+                    start_kamikaze_choice(chat, dead_id)
+                
+                chat.remove_player(dead_id, killed_by='lynch')
                 if dead['role'] == '🧔🏻‍♂️ Дон':
                     check_and_transfer_don_role(chat)
                 if dead['role'] == '🕵🏼 Комиссар':
                     check_and_transfer_sheriff_role(chat)
+
         else:
             logging.error(f"Игрок с id {dead_id} не найден в chat.players")
     else:
@@ -1146,6 +1297,327 @@ def handle_confirm_vote(chat):
     chat.confirm_votes_active = False
     chat.confirm_message_id = None
     reset_voting(chat)
+
+def check_game_end(chat, game_start_time):
+    lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
+
+    text = {
+        'ru': {
+            'game_over': "Игра окончена! 🙂",
+            'winners': "Победители:",
+            'remaining': "Оставшиеся игроки:",
+            'time': "Время игры: {} мин. {} сек.",
+            'you_earned': "*Игра окончена!*\nВы получили {} 💶",
+            'teams': {
+                'Самоубийца': "Самоубийца",
+                'Жауыз': "Маньяк",
+                'Халық': "Мирные жители",
+                'won': "победили",
+                'Мафия': "Мафия"
+            }
+        },
+        'kz': {
+            'game_over': "Ойын аяқталды! 🙂",
+            'winners': "Жеңімпаздар:",
+            'remaining': "Қалған ойыншылар:",
+            'time': "Ойын уақыты: {} мин. {} сек.",
+            'you_earned': "*Ойын аяқталды!*\nСен {} 💶 алдың",
+            'teams': {
+                'Самоубийца': "Өз-өзіне қол жұмсаушы",
+                'Жауыз': "Жауыз",
+                'Халық': "Халық",
+                'won': "жеңді",
+                'Мафия': "Мафия"
+            }
+        }
+    }[lang]
+
+    def is_mafia_win(total_alive, mafia_team_count):
+        non_mafia_count = total_alive - mafia_team_count
+        mafia_win_cases = {
+            (1, 1),
+            (2, 0), (2, 1), (2, 2),
+            (3, 0), (3, 1), (3, 2),
+            (4, 0), (4, 1), (4, 2),
+            (5, 0), (5, 1), (5, 2), (5, 3),
+            (6, 0), (6, 1), (6, 2), (6, 3),
+            (7, 0), (7, 1), (7, 2), (7, 3),
+            (8, 0), (8, 1), (8, 2), (8, 3), (8, 4)
+        }
+        return (mafia_team_count, non_mafia_count) in mafia_win_cases
+
+    mafia_count = len([p for p in chat.players.values() if p['role'] in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон'] and p['status'] != 'dead'])
+    lawyer_count = len([p for p in chat.players.values() if p['role'] == '👨🏼‍💼 Қорғаушы' and p['status'] != 'dead'])
+    maniac_count = len([p for p in chat.players.values() if p['role'] == '🔪 Жауыз' and p['status'] != 'dead'])
+    non_mafia_count = len([p for p in chat.players.values() if p['role'] not in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы', '🔪 Жауыз'] and p['status'] != 'dead'])
+    total_mafia_team = mafia_count + lawyer_count
+
+    alive_players = [p for p in chat.players.values() if p['status'] != 'dead']
+    alive_count = len(alive_players)
+
+    # ПРОВЕРЯЕМ ПОВЕШЕННЫХ САМОУБИЙЦ
+    suicide_winners = []
+    for player_id, player in chat.players.items():
+        if player['role'] == '🤦🏼 Самоубийца' and player.get('status') == 'lynched':
+            suicide_winners.append(player_id)
+
+    for dead_player in chat.all_dead_players:
+        if isinstance(dead_player, dict):
+            if (dead_player.get('role') == '🤦🏼 Самоубийца' and 
+                dead_player.get('status') == 'lynched'):
+                suicide_winners.append(dead_player['user_id'])
+
+    suicide_winners = list(set(suicide_winners))
+
+    # ОСНОВНОЙ ПОБЕДИТЕЛЬ
+    winning_team = ""
+    winners = []
+    winners_ids = []
+
+    if maniac_count == 1 and alive_count == 1:
+        winning_team = text['teams']['Жауыз']
+        winners = [
+            f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
+            for k, v in chat.players.items()
+            if v['role'] == '🔪 Жауыз' and v['status'] != 'dead'
+        ]
+        winners_ids = [k for k, v in chat.players.items() if v['role'] == '🔪 Жауыз' and v['status'] != 'dead']
+
+    elif maniac_count == 1 and len(chat.players) - maniac_count == 1:
+        winning_team = text['teams']['Жауыз']
+        winners = [
+            f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
+            for k, v in chat.players.items()
+            if v['role'] == '🔪 Жауыз' and v['status'] != 'dead'
+        ]
+        winners_ids = [k for k, v in chat.players.items() if v['role'] == '🔪 Жауыз' and v['status'] != 'dead']
+
+    elif mafia_count == 0 and maniac_count == 0:
+        winning_team = text['teams']['Халық']
+        winners = [
+            f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
+            for k, v in chat.players.items()
+            if v['role'] not in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы', '🔪 Жауыз', '🤦🏼 Самоубийца']
+            and v['status'] != 'dead'
+        ]
+        winners_ids = [k for k, v in chat.players.items() if v['role'] not in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы', '🔪 Жауыз', '🤦🏼 Самоубийца'] and v['status'] != 'dead']
+
+    elif mafia_count == 1 and total_mafia_team == 1 and alive_count == 1:
+        winning_team = text['teams']['Мафия']
+        winners = [
+            f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
+            for k, v in chat.players.items()
+            if v['role'] == '🧔🏻‍♂️ Дон' and v['status'] != 'dead'
+        ]
+        winners_ids = [k for k, v in chat.players.items() if v['role'] == '🧔🏻‍♂️ Дон' and v['status'] != 'dead']
+
+    elif is_mafia_win(alive_count, total_mafia_team):
+        winning_team = text['teams']['Мафия']
+        winners = [
+            f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
+            for k, v in chat.players.items()
+            if v['role'] in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы']
+            and v['status'] != 'dead'
+        ]
+        winners_ids = [k for k, v in chat.players.items() if v['role'] in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы'] and v['status'] != 'dead']
+
+    else:
+        return False
+
+    # ДОБАВЛЯЕМ САМОУБИЙЦ (БЕЗ "+ Самоубийца")
+    if suicide_winners:
+        for suicide_id in suicide_winners:
+            if suicide_id not in winners_ids:
+                winners_ids.append(suicide_id)
+                player_info = None
+                if suicide_id in chat.players:
+                    player_info = chat.players[suicide_id]
+                else:
+                    for dead_player in chat.all_dead_players:
+                        if isinstance(dead_player, dict) and dead_player.get('user_id') == suicide_id:
+                            player_info = dead_player
+                            break
+
+                if player_info:
+                    full_name = f"{player_info['name']} {player_info.get('last_name', '')}".strip()
+                    winners.append(f"[{full_name}](tg://user?id={suicide_id}) - {translate_role(player_info['role'], lang)}")
+
+        if not winning_team:
+            winning_team = text['teams']['Самоубийца']
+
+    # ВЫДАЧА НАГРАД ВСЕМ ПОБЕДИТЕЛЯМ
+    for player_id in winners_ids:
+        reward = 20 if is_user_subscribed(player_id, '@CityMafiaNews') else 10
+        if player_profiles.get(player_id, {}).get('vip_until'):
+            reward += 15
+        player_profiles[player_id]['euro'] += reward
+        try:
+            send_message(player_id, text['you_earned'].format(reward), parse_mode="Markdown")
+        except Exception:
+            pass
+
+    # СОЗДАЕМ СПИСКИ ОСТАВШИХСЯ ИГРОКОВ
+    remaining_players = []
+    for k, v in chat.players.items():
+        if k not in winners_ids and v['status'] not in ['dead', 'left']:
+            remaining_players.append(f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}")
+    for k, v in chat.players.items():
+        if v['status'] == 'left':
+            remaining_players.append(f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}")
+
+    all_dead_players = []
+    for player in chat.all_dead_players:
+        if isinstance(player, dict):
+            player_id = player['user_id']
+            if player_id not in winners_ids:
+                all_dead_players.append(f"[{get_full_name(player)}](tg://user?id={player_id}) - {translate_role(player['role'], lang)}")
+        else:
+            import re
+            match = re.search(r'tg://user\?id=(\d+)', player)
+            if match:
+                player_id = int(match.group(1))
+                if player_id not in winners_ids:
+                    all_dead_players.append(player)
+
+    # НАГРАДЫ ДЛЯ ОСТАВШИХСЯ
+    for player_id in chat.players:
+        if player_id not in winners_ids and chat.players[player_id]['status'] != 'left':
+            reward = 0
+            if player_profiles.get(player_id, {}).get('vip_until'):
+                reward += 10
+            player_profiles[player_id]['euro'] += reward
+            try:
+                send_message(player_id, text['you_earned'].format(reward), parse_mode="Markdown")
+            except Exception:
+                pass
+
+    # РЕКЛАМА
+    if current_ad_message:
+        try:
+            if current_ad_message['is_forward']:
+                bot.forward_message(chat.chat_id, current_ad_message['chat_id'], current_ad_message['message_id'])
+            else:
+                source_msg = bot.copy_message(chat.chat_id, current_ad_message['chat_id'], current_ad_message['message_id'])
+                if original_msg := bot.get_message(current_ad_message['chat_id'], current_ad_message['message_id']):
+                    if original_msg.reply_markup:
+                        bot.edit_message_reply_markup(chat.chat_id, source_msg.message_id, reply_markup=original_msg.reply_markup)
+        except Exception as e:
+            logging.error(f"Ошибка при отправке рекламы: {e}")
+
+    time.sleep(5)
+
+    # ФИНАЛЬНОЕ СООБЩЕНИЕ
+    game_duration = time.time() - game_start_time
+    minutes = int(game_duration // 60)
+    seconds = int(game_duration % 60)
+
+    result_text = (
+        f"*{text['game_over']}*\n"
+        f"*{winning_team}* {text['teams']['won']}\n\n"
+        f"*{text['winners']}*\n" + "\n".join(winners) + "\n\n"
+        f"*{text['remaining']}*\n" + "\n".join(remaining_players + all_dead_players) + "\n\n"
+        f"⏰ {text['time'].format(minutes, seconds)}"
+    )
+
+    try:
+        send_message(chat.chat_id, result_text, parse_mode="Markdown")
+    except Exception:
+        pass
+
+    # НАГРАДЫ ДЛЯ МЁРТВЫХ (не победителей)
+    for dead_player in chat.all_dead_players:
+        if isinstance(dead_player, dict):
+            player_id = dead_player['user_id']
+        elif isinstance(dead_player, str):
+            import re
+            match = re.search(r'tg://user\?id=(\d+)', dead_player)
+            if match:
+                player_id = int(match.group(1))
+            else:
+                continue
+        if player_id not in winners_ids:
+            reward = 0
+            if player_profiles.get(player_id, {}).get('vip_until'):
+                reward += 10
+            player_profiles[player_id]['euro'] += reward
+            try:
+                send_message(player_id, text['you_earned'].format(reward), parse_mode="Markdown")
+            except Exception:
+                pass
+
+    # ОБНОВЛЕНИЕ РЕЙТИНГА
+    for player_id in winners_ids:
+        player_scores[player_id] = player_scores.get(player_id, 0) + 1
+    for player_id in chat.players:
+        if player_id not in winners_ids and chat.players[player_id]['status'] not in ['left', 'dead']:
+            player_scores[player_id] = player_scores.get(player_id, 0) - 1
+    for dead_player in chat.all_dead_players:
+        if isinstance(dead_player, dict):
+            player_id = dead_player['user_id']
+        elif isinstance(dead_player, str):
+            import re
+            match = re.search(r'tg://user\?id=(\d+)', dead_player)
+            if match:
+                player_id = int(match.group(1))
+            else:
+                continue
+        if player_id not in winners_ids:
+            player_scores[player_id] = player_scores.get(player_id, 0) - 1
+
+    # ОЧИСТКА РЕГИСТРАЦИИ
+    for player_id in list(user_game_registration.keys()):
+        if user_game_registration[player_id] == chat.chat_id:
+            del user_game_registration[player_id]
+
+    send_zip_to_channel()
+    reset_game(chat)
+    reset_roles(chat)
+    return True
+
+def reset_game(chat):
+    chat.players.clear()  # Очищаем список игроков
+    chat.dead = None
+    chat.sheriff_check = None
+    chat.sheriff_shoot = None
+    chat.sheriff_id = None
+    chat.doc_target = None
+    chat.vote_counts.clear()
+    chat.confirm_votes = {'yes': 0, 'no': 0, 'voted': {}}
+    chat.game_running = False
+    chat.button_id = None
+    chat.dList_id = None
+    chat.shList_id = None
+    chat.docList_id = None
+    chat.mafia_votes.clear()
+    chat.mafia_voting_message_id = None
+    chat.don_id = None
+    chat.lucky_id = None
+    chat.vote_message_id = None
+    chat.hobo_id = None
+    chat.hobo_target = None
+    chat.hobo_visitors.clear()
+    chat.suicide_bomber_id = None  # Сбрасываем ID смертника
+    chat.suicide_hanged = False  # Сбрасываем статус самоубийцы
+    chat.lover_id = None  # Сбрасываем роль любовницы
+    chat.lover_target_id = None  # Сбрасываем цель любовницы
+    chat.previous_lover_target_id = None  # Сбрасываем предыдущую цель любовницы
+    chat.lawyer_id = None  # Сбрасываем ID адвоката
+    chat.lawyer_target = None  # Сбрасываем цель адвоката
+    chat.sergeant_id = None  # Сбрасываем ID сержанта
+    chat.maniac_id = None  # Сбрасываем ID маньяка
+    chat.maniac_target = None  # Сбрасываем цель маньяка
+    
+    # ДОБАВЛЯЕМ СБРОС ПЕРЕМЕННЫХ ДЛЯ САМОУБИЙЦ
+    chat.all_dead_players.clear()  # Очищаем список всех мертвых игроков
+    chat.dead_last_words.clear()  # Очищаем последние слова мертвых
+    
+    # Если есть дополнительные переменные для отслеживания повешенных самоубийц
+    if hasattr(chat, 'lynched_suicides'):
+        chat.lynched_suicides.clear()  # Очищаем список повешенных самоубийц
+    else:
+        chat.lynched_suicides = []  # Создаем атрибут, если его нет
+    
+    logging.info(f"Игра сброшена в чате {chat.chat_id}")
 
 def disable_vote_buttons(chat):
     lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
@@ -1201,7 +1673,7 @@ def send_voting_results(chat, yes_votes, no_votes, player_name=None, player_last
             '👨🏼‍💼 Қорғаушы': '👨🏼‍💼 Адвокат',
             '👮🏼 Сержант': '👮🏼 Сержант',
             '🔪 Жауыз': '🔪 Маньяк',
-            '🤦‍♂️ Самоубийца': 'Самоубийца'
+            '🤦🏼 Самоубийца': '🤦🏼 Суицид'
         },
         'kz': {
             '🧔🏻‍♂️ Дон': '🧔🏻‍♂️ Дон',
@@ -1216,7 +1688,7 @@ def send_voting_results(chat, yes_votes, no_votes, player_name=None, player_last
             '👨🏼‍💼 Қорғаушы': '👨🏼‍💼 Қорғаушы',
             '👮🏼 Сержант': '👮🏼 Сержант',
             '🔪 Жауыз': '🔪 Жауыз',
-            '🤦‍♂️ Самоубийца': 'Өз-өзіне қол жұмсаушы'
+            '🤦🏼 Самоубийца': '🤦🏼 Суицид'
         }
     }
 
@@ -1235,7 +1707,7 @@ def send_voting_results(chat, yes_votes, no_votes, player_name=None, player_last
             "result": "*Дауыс беру нәтижесі:*",
             "saved": f"⚖️ Алайда {player_link} өзін дарға асудан сақтап қалды!",
             "saved_private": "*Сені дарға асқалы жатқанда, Дарға қарсы қорғаныс құтқарып қалды! 🛡️*",
-            "executed": f"_Бүгін_ {player_link} _дегенді дарға астық_\nОл *{role_translations[lang].get(player_role, player_role)}* болды..",
+            "executed": f"Бүгін {player_link} дегенді дарға астық\nОл *{role_translations[lang].get(player_role, player_role)}* болды..",
             "executed_private": "*Күндізгі жиналыста сені бір сөзден дарға асты :(*",
             "nobody": "Халық келісе алмады...\nЕшкімді аспай,\nбәрі үйлеріне қайтты..."
         },
@@ -1385,243 +1857,6 @@ def check_and_transfer_don_role(chat):
         else:
             logging.info("Все мафиози мертвы, роль Дона не передана.")
 
-def check_game_end(chat, game_start_time):
-    lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
-
-    text = {
-        'ru': {
-            'game_over': "Игра окончена! 🙂",
-            'winners': "Победители:",
-            'remaining': "Оставшиеся игроки:",
-            'time': "Время игры: {} мин. {} сек.",
-            'you_earned': "*Игра окончена!*\nВы получили {} 💶",
-            'suicide_win': "Ты победил как самоубийца! 💶 20",
-            'teams': {
-                'Самоубийца': "Самоубийца",
-                'Жауыз': "Маньяк",
-                'Халық': "Мирные жители",
-                'won': "победили",
-                'Мафия': "Мафия"
-            }
-        },
-        'kz': {
-            'game_over': "Ойын аяқталды! 🙂",
-            'winners': "Жеңімпаздар:",
-            'remaining': "Қалған ойыншылар:",
-            'time': "Ойын уақыты: {} мин. {} сек.",
-            'you_earned': "*Ойын аяқталды!*\nСен {} 💶 алдың",
-            'suicide_win': "Сен өз-өзіне қол жұмсаушы ретінде жеңдің! 💶 20",
-            'teams': {
-                'Самоубийца': "Өз-өзіне қол жұмсаушы",
-                'Жауыз': "Жауыз",
-                'Халық': "Халық",
-                'won': "жеңді",
-                'Мафия': "Мафия"
-            }
-        }
-    }[lang]
-
-    def is_mafia_win(total_alive, mafia_team_count):
-        non_mafia_count = total_alive - mafia_team_count
-        mafia_win_cases = {
-            (1, 1),
-            (2, 0), (2, 1), (2, 2),
-            (3, 0), (3, 1), (3, 2),
-            (4, 0), (4, 1), (4, 2),
-            (5, 0), (5, 1), (5, 2), (5, 3),
-            (6, 0), (6, 1), (6, 2), (6, 3),
-            (7, 0), (7, 1), (7, 2), (7, 3),
-            (8, 0), (8, 1), (8, 2), (8, 3), (8, 4)
-        }
-        return (mafia_team_count, non_mafia_count) in mafia_win_cases
-
-    mafia_count = len([p for p in chat.players.values() if p['role'] in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон'] and p['status'] != 'dead'])
-    lawyer_count = len([p for p in chat.players.values() if p['role'] == '👨🏼‍💼 Қорғаушы' and p['status'] != 'dead'])
-    maniac_count = len([p for p in chat.players.values() if p['role'] == '🔪 Жауыз' and p['status'] != 'dead'])
-    non_mafia_count = len([p for p in chat.players.values() if p['role'] not in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы', '🔪 Жауыз'] and p['status'] != 'dead'])
-    total_mafia_team = mafia_count + lawyer_count
-
-    alive_players = [p for p in chat.players.values() if p['status'] != 'dead']
-    alive_count = len(alive_players)
-
-    suicide_player = [
-        p for p in chat.players.values()
-        if p['role'] == '🤦‍♂️ Самоубийца' and p['status'] == 'lynched'
-    ]
-
-    if suicide_player:
-        winning_team = text['teams']['Самоубийца']
-        winners = [
-            f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
-            for k, v in chat.players.items()
-            if v['role'] == '🤦‍♂️ Самоубийца' and v['status'] == 'lynched'
-        ]
-
-    elif maniac_count == 1 and alive_count == 1:
-        winning_team = text['teams']['Жауыз']
-        winners = [
-            f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
-            for k, v in chat.players.items()
-            if v['role'] == '🔪 Жауыз' and v['status'] != 'dead'
-        ]
-
-    elif maniac_count == 1 and len(chat.players) - maniac_count == 1:
-        winning_team = text['teams']['Жауыз']
-        winners = [
-            f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
-            for k, v in chat.players.items()
-            if v['role'] == '🔪 Жауыз' and v['status'] != 'dead'
-        ]
-
-    elif mafia_count == 0 and maniac_count == 0:
-        winning_team = text['teams']['Халық']
-        winners = [
-            f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
-            for k, v in chat.players.items()
-            if v['role'] not in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы', '🔪 Жауыз']
-            and v['status'] != 'dead'
-        ]
-
-    elif mafia_count == 1 and total_mafia_team == 1 and alive_count == 1:
-        winning_team = text['teams']['Мафия']
-        winners = [
-            f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
-            for k, v in chat.players.items()
-            if v['role'] == '🧔🏻‍♂️ Дон' and v['status'] != 'dead'
-        ]
-
-    elif is_mafia_win(alive_count, total_mafia_team):
-        winning_team = text['teams']['Мафия']
-        winners = [
-            f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
-            for k, v in chat.players.items()
-            if v['role'] in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы']
-            and v['status'] != 'dead'
-        ]
-
-    else:
-        return False
-
-    winners_ids = [k for k, v in chat.players.items() if f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}" in winners]
-
-    for player_id in winners_ids:
-        reward = 20 if is_user_subscribed(player_id, '@CityMafiaNews') else 10
-        if player_profiles.get(player_id, {}).get('vip_until'):
-            reward += 15
-        player_profiles[player_id]['euro'] += reward
-        try:
-            send_message(player_id, text['you_earned'].format(reward), parse_mode="Markdown")
-        except Exception:
-            pass
-
-    if suicide_player:
-        for player_id, player in chat.players.items():
-            if player['role'] == '🤦‍♂️ Самоубийца' and player['status'] == 'lynched':
-                try:
-                    send_message(player_id, text['suicide_win'])
-                except Exception:
-                    pass
-
-    remaining_players = [
-        f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
-        for k, v in chat.players.items()
-        if k not in winners_ids and v['status'] not in ['dead', 'left']
-    ]
-    remaining_players.extend([
-        f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
-        for k, v in chat.players.items()
-        if v['status'] == 'left'
-    ])
-
-    all_dead_players = []
-    for player in chat.all_dead_players:
-        if isinstance(player, dict):
-            all_dead_players.append(
-                f"[{get_full_name(player)}](tg://user?id={player['user_id']}) - {translate_role(player['role'], lang)}"
-            )
-        else:
-            all_dead_players.append(player)
-
-    for player_id in chat.players:
-        if player_id not in winners_ids and chat.players[player_id]['status'] != 'left':
-            reward = 0
-            if player_profiles.get(player_id, {}).get('vip_until'):
-                reward += 10
-            player_profiles[player_id]['euro'] += reward
-            try:
-                send_message(player_id, text['you_earned'].format(reward), parse_mode="Markdown")
-            except Exception:
-                pass
-
-    if current_ad_message:
-        try:
-            if current_ad_message['is_forward']:
-                bot.forward_message(chat.chat_id, current_ad_message['chat_id'], current_ad_message['message_id'])
-            else:
-                source_msg = bot.copy_message(chat.chat_id, current_ad_message['chat_id'], current_ad_message['message_id'])
-                if original_msg := bot.get_message(current_ad_message['chat_id'], current_ad_message['message_id']):
-                    if original_msg.reply_markup:
-                        bot.edit_message_reply_markup(chat.chat_id, source_msg.message_id, reply_markup=original_msg.reply_markup)
-        except Exception as e:
-            logging.error(f"Ошибка при отправке рекламы: {e}")
-
-    time.sleep(5)
-
-    game_duration = time.time() - game_start_time
-    minutes = int(game_duration // 60)
-    seconds = int(game_duration % 60)
-
-    result_text = (
-        f"*{text['game_over']}*\n"
-        f"*{winning_team}* {text['teams']['won']}\n\n"
-        f"*{text['winners']}*\n" + "\n".join(winners) + "\n\n"
-        f"*{text['remaining']}*\n" + "\n".join(remaining_players + all_dead_players) + "\n\n"
-        f"⏰ {text['time'].format(minutes, seconds)}"
-    )
-
-    try:
-        send_message(chat.chat_id, result_text, parse_mode="Markdown")
-    except Exception:
-        pass
-
-    for dead_player in chat.all_dead_players:
-        if isinstance(dead_player, dict):
-            player_id = dead_player['user_id']
-        elif isinstance(dead_player, str):
-            player_id = int(dead_player.split('=')[1].split(')')[0])
-        reward = 0
-        if player_profiles.get(player_id, {}).get('vip_until'):
-            reward += 10
-        player_profiles[player_id]['euro'] += reward
-        try:
-            send_message(player_id, text['you_earned'].format(reward), parse_mode="Markdown")
-        except Exception:
-            pass
-
-    for player_id in winners_ids:
-        player_scores[player_id] = player_scores.get(player_id, 0) + 1
-
-    for player_id in chat.players:
-        if player_id not in winners_ids and chat.players[player_id]['status'] not in ['left', 'dead']:
-            player_scores[player_id] = player_scores.get(player_id, 0) - 1
-
-    for dead_player in chat.all_dead_players:
-        if isinstance(dead_player, dict):
-            player_id = dead_player['user_id']
-        elif isinstance(dead_player, str):
-            player_id = int(dead_player.split('=')[1].split(')')[0])
-        if player_id not in winners_ids:
-            player_scores[player_id] = player_scores.get(player_id, 0) - 1
-
-    for player_id in list(user_game_registration.keys()):
-        if user_game_registration[player_id] == chat.chat_id:
-            del user_game_registration[player_id]
-
-    send_zip_to_channel()
-    reset_game(chat)
-    reset_roles(chat)
-    return True
-
 # Добавляем новую команду для управления рекламой
 @bot.message_handler(commands=['реклама'])
 def handle_ad_command(message):
@@ -1701,40 +1936,6 @@ def handle_ad_callback(call):
         current_ad_message['is_forward'] = True
         bot.edit_message_text("✅ Реклама сохранена (будет переслана)", call.message.chat.id, call.message.message_id)
 
-
-def reset_game(chat):
-    chat.players.clear()  # Очищаем список игроков
-    chat.dead = None
-    chat.sheriff_check = None
-    chat.sheriff_shoot = None
-    chat.sheriff_id = None
-    chat.doc_target = None
-    chat.vote_counts.clear()
-    chat.confirm_votes = {'yes': 0, 'no': 0, 'voted': {}}
-    chat.game_running = False
-    chat.button_id = None
-    chat.dList_id = None
-    chat.shList_id = None
-    chat.docList_id = None
-    chat.mafia_votes.clear()
-    chat.mafia_voting_message_id = None
-    chat.don_id = None
-    chat.lucky_id = None
-    chat.vote_message_id = None
-    chat.hobo_id = None
-    chat.hobo_target = None
-    chat.hobo_visitors.clear()
-    chat.suicide_bomber_id = None  # Сбрасываем ID смертника
-    chat.suicide_hanged = False  # Сбрасываем статус самоубийцы
-    chat.lover_id = None  # Сбрасываем роль любовницы
-    chat.lover_target_id = None  # Сбрасываем цель любовницы
-    chat.previous_lover_target_id = None  # Сбрасываем предыдущую цель любовницы
-    chat.lawyer_id = None  # Сбрасываем ID адвоката
-    chat.lawyer_target = None  # Сбрасываем цель адвоката
-    chat.sergeant_id = None  # Сбрасываем ID сержанта
-    chat.maniac_id = None  # Сбрасываем ID маньяка
-    chat.maniac_target = None  # Сбрасываем цель маньяка
-    logging.info(f"Игра сброшена в чате {chat.chat_id}")
 
 def reset_roles(chat):
     """
@@ -1876,7 +2077,7 @@ role_translations = {
         '👨🏼‍💼 Қорғаушы': '👨🏼‍💼 Адвокат',
         '👮🏼 Сержант': '👮🏼 Сержант',
         '🔪 Жауыз': '🔪 Маньяк',
-        '🤦‍♂️ Самоубийца': 'Самоубийца',
+        '🤦🏼 Самоубийца': 'Самоубийца',
         '💤 Маубас': '💤 Лентяй',
         '💣': '💣 Камикадзе'
     },
@@ -1893,7 +2094,7 @@ role_translations = {
         '👨🏼‍💼 Қорғаушы': '👨🏼‍💼 Қорғаушы',
         '👮🏼 Сержант': '👮🏼 Сержант',
         '🔪 Жауыз': '🔪 Жауыз',
-        '🤦‍♂️ Самоубийца': 'Өз-өзіне қол жұмсаушы',
+        '🤦🏼 Самоубийца': '🤦🏼 Суицид',
         '💤 Маубас': '💤 Маубас',
         '💣': '💣 Камикадзе'
     }
@@ -1908,6 +2109,12 @@ def process_deaths(chat, killed_by_mafia, killed_by_sheriff, killed_by_bomber=No
     combined_message = ""
     deaths = {}
     doc_visit_notified = set()  # 🔒 Чтобы не отправлять одно и то же сообщение дважды
+
+    
+    if hasattr(chat, 'kamikaze_kill') and chat.kamikaze_kill:
+        victim_id, victim = chat.kamikaze_kill
+        deaths[victim_id] = {'victim': victim, 'roles': ['💣 Камикадзе']}
+        del chat.kamikaze_kill
 
     if hasattr(chat, 'gun_kill') and chat.gun_kill:
         victim_id, victim = chat.gun_kill
@@ -2028,10 +2235,10 @@ def process_deaths(chat, killed_by_mafia, killed_by_sheriff, killed_by_bomber=No
 
         if lang == 'kz':
             combined_message += f"Түнде *{translate_role(victim['role'], lang)}* {victim_link} аяусыз өлтірілген болды...\n"
-            combined_message += f"Оған *{translated_roles}* кіріп шықты деседі\n\n"
+            combined_message += f"Оған {translated_roles} кіріп шықты деседі\n\n"
         if lang == 'ru':
             combined_message += f"Сегодня был жестоко убит *{translate_role(victim['role'], lang)}* {victim_link}...\n"
-            combined_message += f"ходят слухи, что у него был визит от *{translated_roles}*\n\n"
+            combined_message += f"ходят слухи, что у него был визит от {translated_roles}\n\n"
 
         chat.remove_player(victim_id, killed_by='night')
 
@@ -2045,6 +2252,43 @@ def process_deaths(chat, killed_by_mafia, killed_by_sheriff, killed_by_bomber=No
 
     check_and_transfer_don_role(chat)
     check_and_transfer_sheriff_role(chat)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('kamikaze_choice_'))
+def handle_kamikaze_callback(call):
+    """Обработчик выбора камикадзе"""
+    try:
+        user_id = call.from_user.id
+        
+        # Ищем чат, в котором пользователь является камикадзе
+        for chat_id, chat in chat_list.items():
+            if (hasattr(chat, 'suicide_bomber_id') and 
+                chat.suicide_bomber_id == user_id and 
+                chat.kamikaze_choice_active):
+                
+                # Проверяем, что камикадзе повешен и выбор активен
+                if chat.suicide_hanged:
+                    chosen_player_id = int(call.data.split('_')[2])
+                    handle_kamikaze_choice(chat, user_id, chosen_player_id)
+                    return
+                
+        # Если не нашли подходящий чат или условия не выполнены
+        lang = get_user_language(user_id)  # Функция для получения языка пользователя
+        if lang == 'kz':
+            bot.answer_callback_query(call.id, "❌ Бұл әрекет қолжетімсіз", show_alert=True)
+        else:
+            bot.answer_callback_query(call.id, "❌ Это действие недоступно", show_alert=True)
+            
+    except ValueError:
+        logging.error(f"Неверный формат callback data: {call.data}")
+    except Exception as e:
+        logging.error(f"Ошибка в обработчике callback камикадзе: {e}")
+        bot.answer_callback_query(call.id, "❌ Ошибка при обработке выбора", show_alert=True)
+
+# Вспомогательная функция для получения языка пользователя
+def get_user_language(user_id):
+    """Получает язык пользователя из профиля или настроек"""
+    profile = player_profiles.get(user_id, {})
+    return profile.get('language', 'kz')  # По умолчанию казахский
 
 
 
@@ -2286,71 +2530,66 @@ def export_data_command(message):
         bot.reply_to(message, "❌ У вас нет прав для этой команды.")
 
 def handle_zip_upload(message):
-    """Обрабатывает загруженный ZIP-архив и извлекает данные."""
     file_id = message.document.file_id
     file_info = bot.get_file(file_id)
     downloaded_file = bot.download_file(file_info.file_path)
 
     with zipfile.ZipFile(io.BytesIO(downloaded_file), 'r') as zip_file:
-        # Обрабатываем player_profiles.csv
+
+        # ===== player_profiles.csv =====
         if 'player_profiles.csv' in zip_file.namelist():
-            with zip_file.open('player_profiles.csv') as f:
-                csv_data = io.StringIO(f.read().decode('utf-8'))
-                reader = csv.DictReader(csv_data)
-                for row in reader:
-                    user_id = int(row['ID'])
-                    player_profiles[user_id] = {
-                        'id': user_id,
-                        'name': row.get('Имя', 'Неизвестно'),
-                        'last_name': row.get('Фамилия', ''),
-                        'euro': int(row.get('Евро', 0) or 0),
-                        'coins': int(row.get('Монета', 0) or 0),
-                        'shield': int(row.get('Щит', 0) or 0),
-                        'hanging_shield': int(row.get('Щит от повешения', 0) or 0),
-                        'fake_docs': int(row.get('Поддельные документы', 0) or 0),
-                        'vip_until': row.get('VIP до', ''),
-                        'shield_active': parse_active_status(row.get('Щит активен', '🔴 OFF')),
-                        'hanging_shield_active': parse_active_status(row.get('Щит от повешения активен', '🔴 OFF')),
-                        'docs_active': parse_active_status(row.get('Документы активны', '🔴 OFF')),
-                        'gun': int(row.get('Тапанша', 0) or 0),
-                        'language': row.get('Язык', 'kz')
-                    }
+            reader = csv.DictReader(io.StringIO(zip_file.read('player_profiles.csv').decode('utf-8')))
+            for row in reader:
+                user_id = int(row['ID'])
+                player_profiles[user_id] = {
+                    'id': user_id,
+                    'name': row.get('Имя', 'Неизвестно'),
+                    'last_name': row.get('Фамилия', ''),
+                    'euro': int(row.get('Евро', 0) or 0),
+                    'coins': int(row.get('Монета', 0) or 0),
+                    'shield': int(row.get('Щит', 0) or 0),
+                    'hanging_shield': int(row.get('Щит от повешения', 0) or 0),
+                    'fake_docs': int(row.get('Поддельные документы', 0) or 0),
+                    'vip_until': row.get('VIP до', ''),
+                    'shield_active': parse_active_status(row.get('Щит активен', '🔴 OFF')),
+                    'hanging_shield_active': parse_active_status(row.get('Щит от повешения активен', '🔴 OFF')),
+                    'docs_active': parse_active_status(row.get('Документы активны', '🔴 OFF')),
+                    'gun': int(row.get('Тапанша', 0) or 0),
+                    'language': row.get('Язык', 'kz')
+                }
 
-        # Обрабатываем player_scores.csv
+        # ===== player_scores.csv =====
         if 'player_scores.csv' in zip_file.namelist():
-            with zip_file.open('player_scores.csv') as f:
-                csv_data = io.StringIO(f.read().decode('utf-8'))
-                reader = csv.DictReader(csv_data)
-                for row in reader:
-                    entity_id = int(row['ID'])
-                    value = int(row['Значение'])
-                    if row['Тип'] == 'player':
-                        player_scores[entity_id] = value
-                    elif row['Тип'] == 'timer':
-                        game_timers[entity_id] = value
+            reader = csv.DictReader(io.StringIO(zip_file.read('player_scores.csv').decode('utf-8')))
+            for row in reader:
+                entity_id = int(row['ID'])
+                value = int(row['Значение'])
+                if row['Тип'] == 'player':
+                    player_scores[entity_id] = value
+                elif row['Тип'] == 'timer':
+                    game_timers[entity_id] = value
 
-        # Обрабатываем chat_settings.csv
+        # ===== chat_settings.csv (IMPORT) =====
         if 'chat_settings.csv' in zip_file.namelist():
-            with zip_file.open('chat_settings.csv') as f:
-                csv_data = io.StringIO(f.read().decode('utf-8'))
-                reader = csv.DictReader(csv_data)
-                for row in reader:
-                    chat_id = int(row['Chat ID'])
-                    reg_time_parts = row['Registration Time'].split('/')
-                    
-                    # Создаем настройки чата с учетом языка
-                    chat_settings[chat_id] = {
-                        'pin_registration': row['Pin Registration'] == 'Yes',
-                        'allow_registration': row['Allow Registration'] == 'Yes',
-                        'allow_leave_game': row['Allow Leave'] == 'Yes',
-                        'registration_time': (int(reg_time_parts[0]), int(reg_time_parts[1])),
-                        'night_time': int(row['Night Time']),
-                        'day_time': int(row['Day Time']),
-                        'voting_time': int(row['Voting Time']),
-                        'confirmation_time': int(row['Confirmation Time']),
-                        'mafia_ratio': int(row['Mafia Ratio']),
-                        'language': row.get('Language', 'kz')  # Добавляем язык чата
-                    }
+            reader = csv.DictReader(io.StringIO(zip_file.read('chat_settings.csv').decode('utf-8')))
+            for row in reader:
+                chat_id = int(row['Chat ID'])
+                r1, r2 = row['Registration Time'].split('/')
+
+                chat_settings[chat_id] = {
+                    'pin_registration': row['Pin Registration'] == 'Yes',
+                    'allow_registration': row['Allow Registration'] == 'Yes',
+                    'allow_leave_game': row['Allow Leave'] == 'Yes',
+                    'registration_time': (int(r1), int(r2)),
+                    'night_time': int(row['Night Time']),
+                    'day_time': int(row['Day Time']),
+                    'voting_time': int(row['Voting Time']),
+                    'confirmation_time': int(row['Confirmation Time']),
+                    'mafia_ratio': int(row['Mafia Ratio']),
+                    'players_to_start': int(row.get('Players To Start', 20)),
+                    'language': row.get('Language', 'ru'),
+                    'anonymous_voting': row.get('Anonymous Voting', 'Yes') == 'Yes'  # ← ДОБАВЛЕНО
+                }
 
     bot.reply_to(message, "✅ Данные успешно загружены из архива!")
 
@@ -2440,18 +2679,20 @@ def handle_document(message):
                 send_message(channel_id, f"❌ Ошибка при загрузке данных: {e}")
 
 def send_zip_to_channel():
-    """Отправляет все данные (профили, очки, настройки) в виде ZIP-архива в канал."""
     channel_id = -1002598471111  # ID канала для загрузки данных
 
-    # Создаем ZIP-архив в памяти
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        # Добавляем профили игроков
+
+        # ===== 1. player_profiles.csv =====
         profiles_csv = io.StringIO()
         writer = csv.writer(profiles_csv)
-        writer.writerow(['ID', 'Имя', 'Фамилия', 'Евро', 'Монета', 'Щит', 'Щит от повешения', 
-                         'Поддельные документы', 'VIP до', 'Щит активен', 
-                         'Щит от повешения активен', 'Документы активны', 'Тапанша', 'Язык'])
+        writer.writerow([
+            'ID', 'Имя', 'Фамилия', 'Евро', 'Монета', 'Щит', 'Щит от повешения', 
+            'Поддельные документы', 'VIP до', 'Щит активен', 
+            'Щит от повешения активен', 'Документы активны', 
+            'Тапанша', 'Язык'
+        ])
         for user_id, profile in player_profiles.items():
             writer.writerow([
                 user_id,
@@ -2467,32 +2708,60 @@ def send_zip_to_channel():
                 '🟢 ON' if profile.get('hanging_shield_active', False) else '🔴 OFF',
                 '🟢 ON' if profile.get('docs_active', False) else '🔴 OFF',
                 profile.get('gun', 0),
-                profile.get('language', 'kz')  # Добавляем язык профиля
+                profile.get('language', 'kz')
             ])
         profiles_csv.seek(0)
         zip_file.writestr('player_profiles.csv', profiles_csv.getvalue())
 
-        # Добавляем настройки чатов (обновленная версия с языком)
+        # ===== 2. player_scores.csv =====
+        scores_csv = io.StringIO()
+        writer = csv.writer(scores_csv)
+        writer.writerow(['Тип', 'ID', 'Значение'])
+
+        for user_id, score in player_scores.items():
+            writer.writerow(['player', user_id, score])
+
+        for timer_id, value in game_timers.items():
+            writer.writerow(['timer', timer_id, value])
+
+        scores_csv.seek(0)
+        zip_file.writestr('player_scores.csv', scores_csv.getvalue())
+
+        # ===== 3. chat_settings.csv =====
         settings_csv = io.StringIO()
         writer = csv.writer(settings_csv)
-        writer.writerow(['Chat ID', 'Pin Registration', 'Allow Registration', 
-                        'Allow Leave', 'Registration Time', 'Night Time',
-                        'Day Time', 'Voting Time', 'Confirmation Time',
-                        'Mafia Ratio', 'Language'])  # Добавляем колонку Language
+        writer.writerow([
+            'Chat ID',
+            'Pin Registration',
+            'Allow Registration',
+            'Allow Leave',
+            'Registration Time',
+            'Night Time',
+            'Day Time',
+            'Voting Time',
+            'Confirmation Time',
+            'Mafia Ratio',
+            'Players To Start',
+            'Language',
+            'Anonymous Voting'  # ← ДОБАВЛЕНО
+        ])
+
         for chat_id, settings in chat_settings.items():
             reg_time = f"{settings['registration_time'][0]}/{settings['registration_time'][1]}"
             writer.writerow([
                 chat_id,
-                'Yes' if settings['pin_registration'] else 'No',
-                'Yes' if settings['allow_registration'] else 'No',
-                'Yes' if settings['allow_leave_game'] else 'No',
+                'Yes' if settings.get('pin_registration') else 'No',
+                'Yes' if settings.get('allow_registration') else 'No',
+                'Yes' if settings.get('allow_leave_game') else 'No',
                 reg_time,
-                settings['night_time'],
-                settings['day_time'],
-                settings['voting_time'],
-                settings['confirmation_time'],
-                settings['mafia_ratio'],
-                settings.get('language', 'ru')  # Добавляем язык чата
+                settings.get('night_time', 120),
+                settings.get('day_time', 120),
+                settings.get('voting_time', 90),
+                settings.get('confirmation_time', 30),
+                settings.get('mafia_ratio', 4),
+                settings.get('players_to_start', 20),
+                settings.get('language', 'ru'),
+                'Yes' if settings.get('anonymous_voting', True) else 'No'  # ← ДОБАВЛЕНО
             ])
         settings_csv.seek(0)
         zip_file.writestr('chat_settings.csv', settings_csv.getvalue())
@@ -2505,11 +2774,13 @@ def send_zip_to_channel():
     except Exception as e:
         logging.error(f"Ошибка отправки ZIP-архива: {e}")
                 
+
 @bot.message_handler(commands=['start'])
 def start_message(message):
     user_id = message.from_user.id
     chat_id = message.chat.id
 
+    # ================= PRIVATE =================
     if message.chat.type == 'private':
         user_name = message.from_user.first_name or "Пользователь"
         user_last_name = message.from_user.last_name or ""
@@ -2530,13 +2801,15 @@ def start_message(message):
 
         start_content = {
             'kz': {
-                'text': '*Сэлем!*\nМен 🤵🏻 *Мафия* ойнынын жургізуші-ботымын.',
+                'text': '*Сэлем!*\nМен 🤵🏻 *Мафия* ойнынын жургізуші-ботымын.\n'
+                        'Мені чатқа қосып, әкімші етіңіз және тегін ойнай бастаңыз',
                 'add_to_group': '🤵🏽 Ботты өз чатыңа қосу',
                 'join_chat': 'Чатка кіру',
                 'news': '📰 Жаңалықтар'
             },
             'ru': {
-                'text': '*Привет!*\nЯ 🤵🏻 *Мафия* бот-ведущий.',
+                'text': '*Привет!*\nЯ 🤵🏻 *Мафия* бот-ведущий.\n'
+                        'Добавьте меня в чат, сделайте администратором и начните играть бесплатно',
                 'add_to_group': '🤵🏽 Добавить бота в свой чат',
                 'join_chat': 'Войти в чат',
                 'news': '📰 Новости'
@@ -2546,9 +2819,10 @@ def start_message(message):
         content = start_content[lang]
         text = message.text
 
-        # ---------- JOIN ----------
+        # ================= JOIN =================
         if len(text.split()) > 1:
             param = text.split()[1]
+
             if param.startswith("join_"):
                 game_chat_id = int(param.split('_')[1])
                 lang = chat_settings.get(game_chat_id, {}).get("language", "kz")
@@ -2556,8 +2830,9 @@ def start_message(message):
                 if user_id in user_game_registration and user_game_registration[user_id] != game_chat_id:
                     bot.send_message(
                         user_id,
-                        "🚫 Вы уже зарегистрированы в другой игре" if lang == 'ru'
-                        else "🚫 Басқа ойынға қосылып қойғансыз"
+                        "🚫 Вы уже зарегистрированы в другой игре"
+                        if lang == 'ru' else
+                        "🚫 Басқа ойынға қосылып қойғансыз"
                     )
                     return
 
@@ -2569,35 +2844,40 @@ def start_message(message):
                     chat_member = bot.get_chat_member(game_chat_id, user_id)
 
                     # ===== ИСПРАВЛЕННАЯ ПРОВЕРКА ПРАВ =====
-                    if chat_member.status in ['administrator', 'creator']:
+                    if (
+                        chat_member.status in ['administrator', 'creator']
+                        or chat_member.status == 'member'
+                        or (chat_member.status == 'restricted' and chat_member.can_send_messages)
+                    ):
                         can_send = True
-                    elif chat_member.status == 'restricted':
-                        can_send = chat_member.can_send_messages
                     else:
-                        can_send = True
+                        can_send = False
                     # ====================================
 
                     if not can_send:
                         bot.send_message(
                             user_id,
-                            "🚫 У вас нет прав писать в чате" if lang == 'ru'
-                            else "🚫 Топта хабарлама жіберуге рұқсатыңыз жоқ"
+                            "🚫 У вас нет прав отправлять сообщения в группе"
+                            if lang == 'ru' else
+                            "🚫 Топта хабарлама жіберуге рұқсатыңыз жоқ"
                         )
                         return
 
                     if chat.game_running:
                         bot.send_message(
                             user_id,
-                            "🚫 Игра уже началась" if lang == 'ru'
-                            else "🚫 Ойын басталып кетті"
+                            "🚫 Игра уже началась"
+                            if lang == 'ru' else
+                            "🚫 Ойын басталып кетті"
                         )
                         return
 
                     if not chat.button_id:
                         bot.send_message(
                             user_id,
-                            "🚫 Игра ещё не началась" if lang == 'ru'
-                            else "🚫 Ойын әлі басталмаған"
+                            "🚫 Игра ещё не началась"
+                            if lang == 'ru' else
+                            "🚫 Ойын әлі басталмаған"
                         )
                         return
 
@@ -2612,35 +2892,38 @@ def start_message(message):
                         bot.send_message(
                             user_id,
                             f"🎲 Вы присоединились к игре в чате {bot.get_chat(game_chat_id).title}!"
-                            if lang == 'ru'
-                            else f"🎲 {bot.get_chat(game_chat_id).title} чатындағы ойынға қосылдыңыз!"
+                            if lang == 'ru' else
+                            f"🎲 {bot.get_chat(game_chat_id).title} чатындағы ойынға қосылдыңыз!"
                         )
 
                         try:
                             schedule_update(game_chat_id, chat)
                         except Exception as e:
-                            logging.error(f"Ошибка обновления: {e}")
+                            logging.error(f"Ошибка обновления сообщения: {e}")
 
                         with game_start_lock:
-                            if len(chat.players) >= 20 and not chat.game_running:
+                            players_needed = chat_settings.get(game_chat_id, {}).get('players_to_start', 20)
+                            if len(chat.players) >= players_needed and not chat.game_running:
                                 _start_game(game_chat_id)
                     else:
                         bot.send_message(
                             user_id,
-                            "✅ Вы уже в игре" if lang == 'ru'
-                            else "✅ Сіз ойынға қосылғансыз"
+                            "✅ Вы уже присоединились к игре! :)"
+                            if lang == 'ru' else
+                            "✅ Ойынға қосылдыңыз! :)"
                         )
 
                 except Exception as e:
                     logging.error(f"Ошибка при проверке прав доступа: {e}")
                     bot.send_message(
                         user_id,
-                        "🚫 Не удалось присоединиться" if lang == 'ru'
-                        else "🚫 Қосылу мүмкін болмады"
+                        "🚫 Не удалось присоединиться"
+                        if lang == 'ru' else
+                        "🚫 Қосылу мүмкін болмады"
                     )
                 return
 
-        # ---------- ГЛАВНОЕ МЕНЮ ----------
+        # ================= MAIN MENU =================
         bot_username = bot.get_me().username
         add_to_group_url = f'https://t.me/{bot_username}?startgroup=bot_command'
 
@@ -2651,7 +2934,7 @@ def start_message(message):
 
         bot.send_message(chat_id, content['text'], reply_markup=keyboard, parse_mode="Markdown")
 
-    # ---------- ГРУППА ----------
+    # ================= GROUP =================
     elif message.chat.type in ['group', 'supergroup']:
         bot.delete_message(chat_id, message.message_id)
 
@@ -2665,37 +2948,71 @@ def start_message(message):
 
 @bot.callback_query_handler(func=lambda call: call.data == 'join_chat')
 def join_chat_callback(call):
-    chat_id = call.message.chat.id
     user_id = call.from_user.id
-    
-    # Получаем язык из профиля для callback
+    chat_id = call.message.chat.id
+
+    # Получаем язык профиля пользователя
     profile = get_or_create_profile(user_id, call.from_user.first_name)
-    lang = profile.get('language', 'ru')
-    
-    # Тексты для кнопок в зависимости от языка
-    chat_list_text = {
-        'kz': {
-            'title': '*Чат тізімі*',
-            'city_mafia': 'City Mafia Kazakhstan 🇰🇿',
-            'golden_mafia': 'Golden Mafia KZ 🇰🇿'
-        },
-        'ru': {
-            'title': '*Список чатов*',
-            'city_mafia': 'City Mafia Kazakhstan 🇰🇿',
-            'golden_mafia': 'Golden Mafia KZ 🇰🇿'
-        }
-    }
-    content = chat_list_text[lang]
+    user_lang = profile.get('language', 'ru')
 
-    bot.answer_callback_query(call.id, "Чатты таңдаңыз" if lang == 'kz' else "Выберите чат")
-    
+    # ❗ Чаты, к которым надо дать кнопку
+    #   key = chat_id группы
+    chat_targets = [
+        -1003411473049    # Premium KZ
+    ]
+
+    # Создаём клавиатуру
     keyboard = types.InlineKeyboardMarkup()
-    btn1 = types.InlineKeyboardButton(content['city_mafia'], url='https://t.me/CityMafiaKZ')
-    btn2 = types.InlineKeyboardButton(content['golden_mafia'], url='https://t.me/+WO8MLze4bZtlOTBi')
-    keyboard.add(btn1)
-    keyboard.add(btn2)
 
-    send_message(chat_id, content['title'], reply_markup=keyboard, parse_mode="Markdown")
+    for target_id in chat_targets:
+        try:
+            # Получаем объект чата
+            chat_info = bot.get_chat(target_id)
+
+            # Получаем название чата
+            chat_title = chat_info.title
+
+            # Получаем язык этого чата
+            chat_lang = chat_settings.get(target_id, {}).get("language", "ru")
+
+            # Проставляем флаги по языку
+            lang_flags = {
+                "ru": "🇷🇺",
+                "kz": "🇰🇿",
+                "en": "🇬🇧"
+            }
+            flag = lang_flags.get(chat_lang, "🏳️")
+
+            # Получаем ссылку приглашения (бот должен быть админом!)
+            invite_link = bot.export_chat_invite_link(target_id)
+
+            # Кнопка с названием группы + языком
+            btn = types.InlineKeyboardButton(
+                f"{chat_title} ({flag})",
+                url=invite_link
+            )
+            keyboard.add(btn)
+
+        except Exception as e:
+            print("Ошибка:", e)
+
+    # Текст по языку пользователя
+    text_by_lang = {
+        'kz': "*Қол жетімді чаттар:*",
+        'ru': "*Список чатов:*"
+    }
+
+    bot.answer_callback_query(
+        call.id,
+        "Чат таңдаңыз" if user_lang == 'kz' else "Выберите чат"
+    )
+
+    bot.send_message(
+        chat_id,
+        text_by_lang.get(user_lang, "*Список чатов:*"),
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
 
 
 def update_registration_message(game_chat_id, chat):
@@ -2789,8 +3106,11 @@ TEXTS = {
         'pin_question': "Тіркелу хабарламасын бекіту керек пе?",
         'leave_question': "Ойыншыларға /leave командасын қолдануға рұқсат ету керек пе?",
         'admin_question': "Ойынды тек әкімші бастай алатындай ету керек пе?",
-        'yes': "✅ Иә",
-        'no': "❌ Жоқ",
+        'yes': "Иә",
+        'no': "Жоқ",
+        'players_count': "👥 Ойын басталатын ойыншылар саны",
+        'choose_players_count': "Қанша ойыншы жиналғанда ойын автоматты түрде басталады?",
+        'players_count_changed': "Ойыншылар саны өзгертілді",
         'menu_closed': "Меню жабылды.",
         'time_changed': "Уақыт өзгертілді",
         'registration_time_changed': "Тіркелу уақыты өзгертілді",
@@ -2804,8 +3124,14 @@ TEXTS = {
         'leave_disabled': "/leave командасы өшірілді",
         'admin_only_enabled': "Тек әкімші ойынды бастай алады",
         'admin_only_disabled': "Кез келген ойынды бастай алады",
-        'mafia_ratio_changed': "Мафия саны өзгертілді"
+        'mafia_ratio_changed': "Мафия саны өзгертілді",
+
+        # 🔥 ДОБАВЛЕННОЕ
+        'anonymous_vote': "😶‍🌫️ Анонимді дауыс беру",
+        'anon_vote_enabled': "Анонимді дауыс беру қосылды",
+        'anon_vote_disabled': "Анонимді дауыс беру өшірілді"
     },
+
     'ru': {
         'settings_title': "Настройки чата",
         'pin_reg': "📌 Закреплять регистрацию",
@@ -2818,6 +3144,9 @@ TEXTS = {
         'choose_lang': "Выберите язык чата",
         'kazakh': "🇰🇿 Қазақша",
         'russian': "🇷🇺 Русский",
+        'players_count': "👥 Количество игроков для старта",
+        'choose_players_count': "При скольких игроках игра должна начинаться автоматически?",
+        'players_count_changed': "Количество игроков изменено",
         'back': "🔙 Назад",
         'group_only': "Эту команду можно использовать только в групповом чате.",
         'pm_error': "Не удалось отправить настройки в личные сообщения. Проверьте, что бот может писать вам.",
@@ -2838,8 +3167,8 @@ TEXTS = {
         'pin_question': "Закреплять сообщение при регистрации?",
         'leave_question': "Разрешить игрокам использовать /leave?",
         'admin_question': "Разрешить запускать игру только администраторам?",
-        'yes': "✅ Да",
-        'no': "❌ Нет",
+        'yes': "Да",
+        'no': "Нет",
         'menu_closed': "Меню закрыто.",
         'time_changed': "Время изменено",
         'registration_time_changed': "Время регистрации изменено",
@@ -2853,7 +3182,12 @@ TEXTS = {
         'leave_disabled': "Команда /leave выключена",
         'admin_only_enabled': "Только админ может запускать игру",
         'admin_only_disabled': "Любой может запускать игру",
-        'mafia_ratio_changed': "Количество мафии изменено"
+        'mafia_ratio_changed': "Количество мафии изменено",
+
+        # 🔥 ДОБАВЛЕННОЕ
+        'anonymous_vote': "😶‍🌫️ Анонимное голосование",
+        'anon_vote_enabled': "Анонимное голосование включено",
+        'anon_vote_disabled': "Анонимное голосование выключено"
     }
 }
 
@@ -2891,6 +3225,8 @@ def settings_handler(message):
             "night_time": 45,
             "day_time": 60,
             "voting_time": 45,
+            "players_to_start": 20,
+            "anonymous_voting": True,
             "confirmation_time": 30,
             "mafia_ratio": 4
         }
@@ -2902,6 +3238,8 @@ def settings_handler(message):
     main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'mafia_count'), callback_data=f"menu_mafia_ratio_{chat_id}"))
     main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'times'), callback_data=f"menu_time_{chat_id}"))
     main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'language'), callback_data=f"menu_language_{chat_id}"))
+    main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'players_count'), callback_data=f"menu_players_count_{chat_id}"))
+    main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'anonymous_vote'), callback_data=f"menu_anon_vote_{chat_id}"))
     main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'close'), callback_data=f"close_settings_{chat_id}"))
 
     try:
@@ -2959,6 +3297,8 @@ def handle_main_menu(call):
     main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'mafia_count'), callback_data=f"menu_mafia_ratio_{chat_id}"))
     main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'times'), callback_data=f"menu_time_{chat_id}"))
     main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'language'), callback_data=f"menu_language_{chat_id}"))
+    main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'players_count'), callback_data=f"menu_players_count_{chat_id}"))
+    main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'anonymous_vote'), callback_data=f"menu_anon_vote_{chat_id}"))
     main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'close'), callback_data=f"close_settings_{chat_id}"))
 
     bot.edit_message_text(get_text(chat_id, 'select_option'),
@@ -2966,6 +3306,121 @@ def handle_main_menu(call):
                          message_id=call.message.message_id,
                          reply_markup=main_menu_kb)
     bot.answer_callback_query(call.id)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("menu_anon_vote_"))
+def open_anon_vote_menu(call):
+    chat_id = int(call.data.split("_")[-1])
+    user_id = call.from_user.id
+
+    if not is_admin_or_me(bot, chat_id, user_id):
+        bot.answer_callback_query(call.id, get_text(chat_id, 'no_rights'))
+        return
+
+    current = chat_settings.get(chat_id, {}).get("anonymous_voting", True)
+
+    markup = types.InlineKeyboardMarkup()
+    # ▪️ если выбран, ▫️ если нет
+    markup.add(
+        types.InlineKeyboardButton(f"{'▪️' if current else '▫️'} {get_text(chat_id, 'yes')}",
+                                   callback_data=f"set_anon_vote_yes_{chat_id}"),
+        types.InlineKeyboardButton(f"{'▫️' if current else '▪️'} {get_text(chat_id, 'no')}",
+                                   callback_data=f"set_anon_vote_no_{chat_id}")
+    )
+    markup.add(types.InlineKeyboardButton(get_text(chat_id, 'back'), callback_data=f"main_menu_{chat_id}"))
+
+    bot.edit_message_text(
+        chat_id=user_id,
+        message_id=call.message.message_id,
+        text="Хотите сделать анонимное голосование?" if chat_settings[chat_id].get("language","ru")=="ru" else "Анонимді дауыс беру керек пе?",
+        reply_markup=markup
+    )
+    bot.answer_callback_query(call.id)
+
+# ============================
+# Обработчики установки Да/Нет для анонимного голосования
+# ============================
+@bot.callback_query_handler(func=lambda call: call.data.startswith("set_anon_vote_"))
+def set_anon_vote(call):
+    parts = call.data.split("_")
+    choice = parts[3]  # yes/no
+    chat_id = int(parts[4])
+    user_id = call.from_user.id
+
+    if not is_admin_or_me(bot, chat_id, user_id):
+        bot.answer_callback_query(call.id, get_text(chat_id, 'no_rights'))
+        return
+
+    chat_settings[chat_id]["anonymous_voting"] = (choice == "yes")
+
+    bot.answer_callback_query(
+        call.id,
+        get_text(chat_id, 'anon_vote_enabled') if choice == "yes" else get_text(chat_id, 'anon_vote_disabled')
+    )
+
+    # Перерисовываем меню
+    open_anon_vote_menu(call)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("menu_players_count_"))
+def handle_players_count_menu(call):
+    user_id = call.from_user.id
+    chat_id = int(call.data.split("_")[-1])
+
+    if not is_admin_or_me(bot, chat_id, user_id):
+        bot.answer_callback_query(call.id, get_text(chat_id, 'no_rights'))
+        return
+
+    selected = chat_settings.get(chat_id, {}).get("players_to_start", 20)
+
+    markup = types.InlineKeyboardMarkup(row_width=5)
+    buttons = []
+
+    for i in range(4, 26):
+        mark = "▪️" if i == selected else "▫️"
+        text = f"{mark} {i}"
+        buttons.append(types.InlineKeyboardButton(text, callback_data=f"set_players_count_{i}_{chat_id}"))
+
+        if len(buttons) == 5:
+            markup.row(*buttons)
+            buttons = []
+
+    if buttons:
+        markup.row(*buttons)
+
+    markup.add(types.InlineKeyboardButton(get_text(chat_id, 'back'),
+                                          callback_data=f"main_menu_{chat_id}"))
+
+    new_text = get_text(chat_id, 'choose_players_count') + f"\n\n{get_text(chat_id, 'current_value')} {selected}"
+
+    try:
+        bot.edit_message_text(
+            new_text,
+            chat_id=user_id,
+            message_id=call.message.message_id,
+            reply_markup=markup
+        )
+    except Exception as e:
+        if "message is not modified" not in str(e):
+            print(e)
+
+    bot.answer_callback_query(call.id)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("set_players_count_"))
+def set_players_count(call):
+    parts = call.data.split("_")
+    count = int(parts[3])
+    chat_id = int(parts[4])
+    user_id = call.from_user.id
+
+    if not is_admin_or_me(bot, chat_id, user_id):
+        bot.answer_callback_query(call.id, get_text(chat_id, 'no_rights'))
+        return
+
+    chat_settings[chat_id]["players_to_start"] = count
+
+    bot.answer_callback_query(call.id, f"{get_text(chat_id, 'players_count_changed')}: {count}")
+
+    # Возвращаемся и обновляем меню
+    handle_players_count_menu(call)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("menu_time_"))
 def handle_time_menu(call):
@@ -3377,6 +3832,7 @@ def handle_close_settings(call):
     bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
     bot.answer_callback_query(call.id, get_text(chat_id, 'menu_closed'))
 
+
 @bot.message_handler(commands=['game'])
 def create_game(message):
     chat_id = message.chat.id
@@ -3385,6 +3841,14 @@ def create_game(message):
     # Проверяем, что команда вызвана в групповом чате
     if message.chat.type not in ['group', 'supergroup']:
         bot.reply_to(message, "Эту команду можно использовать только в групповом чате.")
+        return
+
+    # 🔒 Проверяем, запрещён ли запуск игры в этом чате
+    if chat_id in blocked_chat_ids:
+        bot.send_message(chat_id,
+                         "🚫 В этом чате запуск игры заблокирован из-за нарушения правил.\n"
+                         "Владельцу чата рекомендуется обратиться в техподдержку.")
+        print(f"Запуск регистрации заблокирован для чата {chat_id}")
         return
 
     # Пытаемся удалить сообщение
@@ -4553,151 +5017,274 @@ def broadcast_command(message):
         return bot.reply_to(message, "⛔️ У тебя нет прав для этой команды.")
 
     user_data[message.chat.id] = {}
-    msg = bot.reply_to(message, "✍️ Отправь текст для рассылки (Markdown или HTML поддерживается):")
+
+    msg = bot.reply_to(message,
+        "✍️ *Отправь текст рассылки.*\n"
+        "Поддерживается:\n"
+        "— HTML (`<b>жирный</b>`)\n"
+        "— Markdown (`**жирный**`)\n"
+        "— Кликабельные ссылки\n\n"
+        "_Если текста нет — отправь слово 'нет'_",
+        parse_mode="Markdown"
+    )
     bot.register_next_step_handler(msg, handle_text)
+
+
+
+# =========================
+#     ПОЛУЧЕНИЕ ТЕКСТА
+# =========================
 
 def handle_text(message):
     chat_id = message.chat.id
-    user_data[chat_id]['text'] = message.text
-    user_data[chat_id]['parse_mode'] = 'HTML' if '<b>' in message.text or '<i>' in message.text else 'Markdown'
+    txt = message.text
 
-    msg = bot.reply_to(message, "📎 Теперь отправь медиа (фото, видео, гиф и т.д.) или напиши «нет»:")
+    if txt and txt.lower() == "нет":
+        txt = None
+
+    user_data[chat_id]['text'] = txt
+
+    # авто-определение парсинга
+    if txt and ("<" in txt and ">" in txt):
+        user_data[chat_id]['parse_mode'] = "HTML"
+    else:
+        user_data[chat_id]['parse_mode'] = "Markdown"
+
+    msg = bot.reply_to(message,
+        "📎 Теперь отправь МЕДИА (фото/видео/гиф/документ/аудио) или напиши «нет»"
+    )
     bot.register_next_step_handler(msg, handle_media)
+
+
+
+# =========================
+#     ПРИЁМ МЕДИА
+# =========================
 
 def handle_media(message):
     chat_id = message.chat.id
-    if message.text and message.text.lower() == 'нет':
+
+    # нет медиа
+    if message.text and message.text.lower() == "нет":
         user_data[chat_id]['media'] = None
     else:
-        user_data[chat_id]['media'] = message
+        user_data[chat_id]['media'] = message  # сохраняем объект сообщения полностью
 
-    msg = bot.reply_to(message, "🔘 Введи кнопку и ссылку в формате:\n\n`Текст кнопки - https://example.com`", parse_mode="Markdown")
-    bot.register_next_step_handler(msg, handle_button)
+    msg = bot.reply_to(message,
+        "🔘 Теперь отправь КНОПКИ.\n"
+        "Формат:\n"
+        "`Текст - https://ссылка`\n"
+        "Для нескольких кнопок отправь несколько сообщений.\n\n"
+        "Когда закончишь — напиши «готово».",
+        parse_mode="Markdown"
+    )
 
-def handle_button(message):
+    user_data[chat_id]['keyboard_buttons'] = []
+    bot.register_next_step_handler(msg, handle_buttons)
+
+
+
+# =========================
+#     ПОЛУЧЕНИЕ КНОПОК
+# =========================
+
+def handle_buttons(message):
     chat_id = message.chat.id
-    keyboard = None
+    text = message.text
 
-    match = re.match(r'^(.+?)\s*-\s*(https?://[^\s]+)$', message.text.strip())
-    if match:
-        button_text, url = match.groups()
+    if text.lower() == "готово":
+        # создаём клавиатуру
         keyboard = types.InlineKeyboardMarkup()
-        button = types.InlineKeyboardButton(text=button_text.strip(), url=url.strip())
-        keyboard.add(button)
 
-    user_data[chat_id]['keyboard'] = keyboard
-    preview(chat_id, message)
+        for btn_text, link in user_data[chat_id]['keyboard_buttons']:
+            keyboard.add(types.InlineKeyboardButton(text=btn_text, url=link))
 
-def preview(chat_id, message):
+        user_data[chat_id]['keyboard'] = keyboard
+
+        return preview(chat_id)
+
+    # парсим кнопку
+    match = re.match(r'^(.+?)\s*-\s*(https?://[^\s]+)$', text)
+    if not match:
+        msg = bot.reply_to(message, "❌ Неверный формат. Пример: `Канал - https://t.me/...`")
+        return bot.register_next_step_handler(msg, handle_buttons)
+
+    btn_text, url = match.groups()
+    user_data[chat_id]['keyboard_buttons'].append((btn_text.strip(), url.strip()))
+
+    msg = bot.reply_to(message, "Добавлено. Можешь отправить ещё или напиши «готово».")
+    bot.register_next_step_handler(msg, handle_buttons)
+
+
+
+# =========================
+#     ПРЕДПРОСМОТР
+# =========================
+
+def preview(chat_id):
     data = user_data[chat_id]
     text = data['text']
+    media = data['media']
     keyboard = data.get('keyboard')
     parse_mode = data['parse_mode']
 
     try:
-        if data.get('media'):
-            bot.copy_message(chat_id, data['media'].chat.id, data['media'].message_id, caption=text, parse_mode=parse_mode, reply_markup=keyboard)
+        if media:
+            bot.copy_message(
+                chat_id,
+                media.chat.id,
+                media.message_id,
+                caption=text,
+                parse_mode=parse_mode,
+                reply_markup=keyboard
+            )
         else:
-            bot.send_message(chat_id, text, parse_mode=parse_mode, reply_markup=keyboard)
-    except Exception as e:
-        bot.send_message(chat_id, f"❌ Ошибка предпросмотра: {e}")
+            bot.send_message(
+                chat_id, text or "(без текста)",
+                parse_mode=parse_mode,
+                reply_markup=keyboard
+            )
 
-    confirm_markup = types.InlineKeyboardMarkup()
-    confirm_markup.add(
-        types.InlineKeyboardButton("✅ Рассылать", callback_data='start_broadcast'),
-        types.InlineKeyboardButton("♻️ Сбросить", callback_data='cancel_broadcast')
+    except Exception as e:
+        bot.send_message(chat_id, f"❌ Ошибка предпросмотра:\n`{e}`", parse_mode="Markdown")
+
+    confirm = types.InlineKeyboardMarkup()
+    confirm.add(
+        types.InlineKeyboardButton("✅ Начать рассылку", callback_data="start_broadcast"),
+        types.InlineKeyboardButton("♻️ Отмена", callback_data="cancel_broadcast")
     )
-    bot.send_message(chat_id, "Все готово. Начать рассылку?", reply_markup=confirm_markup)
+    bot.send_message(chat_id, "Все готово. Запускаем?", reply_markup=confirm)
+
+
+
+# =========================
+#     КНОПКИ УПРАВЛЕНИЯ
+# =========================
 
 @bot.callback_query_handler(func=lambda call: call.data in ['start_broadcast', 'cancel_broadcast'])
 def callback_decision(call):
     chat_id = call.message.chat.id
 
-    if call.data == 'cancel_broadcast':
+    if call.data == "cancel_broadcast":
         user_data.pop(chat_id, None)
-        bot.edit_message_text("❌ Рассылка отменена.", chat_id, call.message.message_id)
-        return
+        return bot.edit_message_text("❌ Отменено.", chat_id, call.message.message_id)
 
     broadcast_status['is_paused'] = False
     broadcast_status['is_stopped'] = False
 
-    bot.edit_message_text("🚀 Начинаем рассылку...", chat_id, call.message.message_id)
+    bot.edit_message_text("🚀 Рассылка началась!", chat_id, call.message.message_id)
 
     thread = threading.Thread(target=send_broadcast, args=(chat_id,))
     thread.start()
+
+
 
 def control_buttons():
     markup = types.InlineKeyboardMarkup()
     markup.row(
         types.InlineKeyboardButton("⏸ Пауза", callback_data="pause_broadcast"),
         types.InlineKeyboardButton("▶️ Продолжить", callback_data="resume_broadcast"),
-        types.InlineKeyboardButton("🛑 Остановить", callback_data="stop_broadcast")
+        types.InlineKeyboardButton("🛑 Стоп", callback_data="stop_broadcast")
     )
     return markup
 
+
+
 @bot.callback_query_handler(func=lambda call: call.data in ['pause_broadcast', 'resume_broadcast', 'stop_broadcast'])
-def handle_broadcast_controls(call):
-    chat_id = call.message.chat.id
-
-    if call.data == 'pause_broadcast':
+def handle_controls(call):
+    if call.data == "pause_broadcast":
         broadcast_status['is_paused'] = True
-        bot.answer_callback_query(call.id, "⏸ Рассылка приостановлена.")
+        bot.answer_callback_query(call.id, "⏸ Приостановлено.")
 
-    elif call.data == 'resume_broadcast':
+    elif call.data == "resume_broadcast":
         broadcast_status['is_paused'] = False
-        bot.answer_callback_query(call.id, "▶️ Рассылка возобновлена.")
+        bot.answer_callback_query(call.id, "▶️ Возобновлено.")
 
-    elif call.data == 'stop_broadcast':
+    elif call.data == "stop_broadcast":
         broadcast_status['is_stopped'] = True
-        bot.answer_callback_query(call.id, "🛑 Рассылка остановлена.")
+        bot.answer_callback_query(call.id, "🛑 Остановлено.")
 
-def send_broadcast(chat_id):
-    data = user_data.get(chat_id)
+
+
+# =========================
+#     ОТПРАВКА РАССЫЛКИ
+# =========================
+
+def send_broadcast(admin_chat):
+    data = user_data.get(admin_chat)
     if not data:
         return
-
-    text = data['text']
-    media = data.get('media')
-    keyboard = data.get('keyboard')
-    parse_mode = data.get('parse_mode')
 
     players = list(player_profiles)
     random.shuffle(players)
 
-    success = 0
-    failed = 0
+    text = data['text']
+    media = data['media']
+    keyboard = data.get('keyboard')
+    parse_mode = data['parse_mode']
 
-    status_msg = bot.send_message(chat_id, f"📤 Рассылка началась...\n✅ Отправлено: 0\n⌛ Осталось: {len(players)}", reply_markup=control_buttons())
+    success, failed = 0, 0
 
-    for idx, player_id in enumerate(players):
+    status_msg = bot.send_message(
+        admin_chat,
+        f"📤 Рассылка началась...\n\n"
+        f"Отправлено: 0 / {len(players)}",
+        reply_markup=control_buttons()
+    )
+
+    for idx, user_id in enumerate(players):
+
         if broadcast_status['is_stopped']:
-            bot.edit_message_text("🛑 Рассылка остановлена.", chat_id, status_msg.message_id)
+            bot.edit_message_text("🛑 Рассылка остановлена.", admin_chat, status_msg.message_id)
             return
 
         while broadcast_status['is_paused']:
             time.sleep(1)
 
         try:
+            # отправка
             if media:
-                bot.copy_message(player_id, media.chat.id, media.message_id, caption=text, parse_mode=parse_mode, reply_markup=keyboard)
+                bot.copy_message(
+                    user_id,
+                    media.chat.id,
+                    media.message_id,
+                    caption=text,
+                    parse_mode=parse_mode,
+                    reply_markup=keyboard
+                )
             else:
-                bot.send_message(player_id, text, parse_mode=parse_mode, reply_markup=keyboard)
+                bot.send_message(user_id, text, parse_mode=parse_mode, reply_markup=keyboard)
+
             success += 1
+
         except Exception as e:
-            logging.error(f"Ошибка отправки {player_id}: {e}")
+            logging.error(f"Ошибка отправки {user_id}: {e}")
             failed += 1
 
-        if idx % 5 == 0 or idx == len(players) - 1:
+        # обновление статуса
+        if idx % 5 == 0:
             try:
-                bot.edit_message_text(f"📤 Рассылка продолжается...\n✅ Отправлено: {success}\n⌛ Осталось: {len(players) - success}",
-                                      chat_id, status_msg.message_id, reply_markup=control_buttons())
+                bot.edit_message_text(
+                    f"📤 Рассылка...\n"
+                    f"Отправлено: {success} / {len(players)}\n"
+                    f"Ошибок: {failed}",
+                    admin_chat, status_msg.message_id,
+                    reply_markup=control_buttons()
+                )
             except:
                 pass
 
-        time.sleep(2)
+        time.sleep(0.5)
 
-    bot.edit_message_text(f"✅ Рассылка завершена.\n📬 Отправлено: {success}\n❌ Ошибок: {failed}", chat_id, status_msg.message_id)
-    user_data.pop(chat_id, None)
+    bot.edit_message_text(
+        f"✅ Готово!\n\n"
+        f"Отправлено: {success}\n"
+        f"Ошибок: {failed}",
+        admin_chat,
+        status_msg.message_id
+    )
+
+    user_data.pop(admin_chat, None)
 
 
 # Команда /next для отправки уведомления о новой регистрации в чате
@@ -4882,60 +5469,221 @@ def leave_game(user_id, game_chat_id, send_private_message=True):
                 logging.error(f"Ошибка обновления сообщения о регистрации: {e}")
 
 
-@bot.message_handler(commands=['give'])
-def give_items(message):
-    allowed_user_id = 6265990443  # Замените на ваш user_id
+def log_give_action(admin_id, target_id, items):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    text = f"📜 ЛОГ ВЫДАЧИ\n⏰ {timestamp}\n👤 Админ: {admin_id}\n🎯 Игрок: {target_id}\n📦 Выдано:\n"
+    for item, amount in items:
+        text += f"   • {item}: {amount}\n"
 
+    if LOG_TO_FILE:
+        with open("give_logs.txt", "a", encoding="utf-8") as f:
+            f.write(text + "\n\n")
+
+    if LOG_TO_CHANNEL:
+        try:
+            bot.send_message(LOG_CHANNEL_ID, text)
+        except Exception as e:
+            print("Ошибка логирования в канал:", e)
+
+# === СТАРТ МЕНЮ GIVE ===
+@bot.message_handler(commands=['give'])
+def give_menu_start(message):
+    allowed_user_id = 6265990443
     if message.from_user.id != allowed_user_id:
-        bot.reply_to(message, "❌ У вас нет прав для выполнения этой команды.")
+        bot.reply_to(message, "❌ У вас нет доступа.")
         return
 
-    command_args = message.text.split()
-
-    if len(command_args) < 4 or (len(command_args) - 2) % 2 != 0:
-        bot.reply_to(message, "❌ Неправильный формат команды. Используйте: /give <user_id> <item1> <amount1> [<item2> <amount2> ...]")
+    args = message.text.split()
+    if len(args) < 2:
+        bot.reply_to(message, "Используйте: /give <user_id>")
         return
 
     try:
-        target_user_id = int(command_args[1])
+        target_id = int(args[1])
+    except:
+        bot.reply_to(message, "❌ user_id должен быть числом.")
+        return
 
-        # Проверяем, существует ли профиль игрока
-        if target_user_id not in player_profiles:
-            try:
-                user_info = bot.get_chat(target_user_id)
-                username = f"{user_info.first_name} {user_info.last_name}".strip()  # Добавляем фамилию, если есть
-            except Exception:
-                username = "Неизвестный"
+    # проверяем или создаём профиль
+    if target_id not in player_profiles:
+        try:
+            info = bot.get_chat(target_id)
+            username = f"{info.first_name} {info.last_name}".strip()
+        except:
+            username = "Неизвестный"
 
-            player_profiles[target_user_id] = {
-                'id': target_user_id,
-                'name': username,
-                'euro': 0,
-                'shield': 0,
-                'fake_docs': 0,
-                'coins': 0
-            }
-            bot.reply_to(message, f"🆕 Профиль пользователя с именем {username} и ID {target_user_id} создан.")
+        player_profiles[target_id] = {
+            'id': target_id,
+            'name': username,
+            'euro': 0,
+            'shield': 0,
+            'fake_docs': 0,
+            'coins': 0,
+            'gun': 0,
+            'hanging_shield': 0,
+            'vip_until': None
+        }
 
-        response = []
-        for i in range(2, len(command_args), 2):
-            item_type = command_args[i].lower()
-            try:
-                amount = int(command_args[i + 1])
-            except ValueError:
-                bot.reply_to(message, f"❌ Неправильный формат количества для {item_type}. Используйте целое число.")
-                return
+    pending_give_menu[message.chat.id] = {
+        "target": target_id,
+        "items": [],
+        "message_id": None
+    }
 
-            if item_type in player_profiles[target_user_id]:
-                player_profiles[target_user_id][item_type] += amount
-                response.append(f"✅ {item_type.capitalize()}: {amount}")
-            else:
-                response.append(f"❌ Неправильный тип предмета: {item_type}")
+    send_item_menu(message.chat.id, from_start=True)
 
-        bot.reply_to(message, f"Результаты для игрока {target_user_id}:\n" + "\n".join(response))
+# === ОТКРЫТИЕ МЕНЮ ПРЕДМЕТОВ ===
+def send_item_menu(chat_id, from_start=False):
+    menu_text = "Выберите предмет и действие:\n"
+    markup = InlineKeyboardMarkup()
 
-    except ValueError:
-        bot.reply_to(message, "❌ Неправильный формат user_id. Используйте числовое значение.")
+    items = [
+        ("euro", "💶 Евро"),
+        ("coins", "🪙 Монеты"),
+        ("shield", "⚔️ Защита"),
+        ("fake_docs", "📁 Фейк доки"),
+        ("gun", "🔫 Пушка"),
+        ("hanging_shield", "⚖️ Щит от повешения"),
+        ("vip", "👑 VIP"),
+    ]
+
+    for item, label in items:
+        markup.add(
+            InlineKeyboardButton(f"➕ {label}", callback_data=f"give_item_{item}"),
+            InlineKeyboardButton(f"➖ {label}", callback_data=f"take_item_{item}")
+        )
+
+    markup.add(InlineKeyboardButton("✅ Завершить", callback_data="give_finish"))
+
+    data = pending_give_menu[chat_id]
+
+    if from_start:
+        sent = bot.send_message(chat_id, menu_text, reply_markup=markup)
+        data["message_id"] = sent.message_id
+    else:
+        bot.edit_message_text(menu_text, chat_id, data["message_id"], reply_markup=markup)
+
+# === CALLBACK ВЫБОРА ПРЕДМЕТА ===
+@bot.callback_query_handler(func=lambda c: c.data.startswith("give_item_") or 
+                                           c.data.startswith("take_item_") or 
+                                           c.data == "give_finish")
+def give_menu_callback(call):
+    chat_id = call.message.chat.id
+    data = pending_give_menu.get(chat_id)
+    if not data:
+        bot.answer_callback_query(call.id, "Сессия истекла.")
+        return
+
+    if call.data == "give_finish":
+        finish_give_menu(call)
+        return
+
+    if call.data.startswith("give_item_"):
+        mode = "give"
+        item = call.data.replace("give_item_", "")
+    else:
+        mode = "take"
+        item = call.data.replace("take_item_", "")
+
+    bot.answer_callback_query(call.id)
+    bot.edit_message_text(
+        f"Введите количество для {item}:\n(действие: {'выдать' if mode=='give' else 'отнять'})",
+        chat_id, data["message_id"]
+    )
+
+    bot.register_next_step_handler(call.message, lambda msg: set_item_amount(msg, item, mode))
+
+# === ВВОД КОЛИЧЕСТВА ===
+def set_item_amount(message, item, mode):
+    chat_id = message.chat.id
+    try:
+        amount = int(message.text)
+    except:
+        bot.reply_to(message, "❌ Количество должно быть числом.")
+        return send_item_menu(chat_id)
+
+    if mode == "take":
+        amount = -abs(amount)
+
+    data = pending_give_menu.get(chat_id)
+    data["items"].append((item, amount))
+
+    bot.edit_message_text(
+        f"Добавлено: {item} = {amount}\n\nДобавить ещё?",
+        chat_id, data["message_id"]
+    )
+    send_item_menu(chat_id)
+
+# === ЗАВЕРШЕНИЕ МЕНЮ ===
+def finish_give_menu(call):
+    chat_id = call.message.chat.id
+    data = pending_give_menu[chat_id]
+
+    if not data["items"]:
+        bot.answer_callback_query(call.id, "Нельзя отправить пустую выдачу!")
+        return
+
+    text = "Подтвердите выдачу:\n\n"
+    for item, amount in data["items"]:
+        text += f"• {item}: {amount}\n"
+
+    markup = InlineKeyboardMarkup()
+    markup.add(
+        InlineKeyboardButton("✅ Подтвердить", callback_data="give_menu_confirm"),
+        InlineKeyboardButton("❌ Отмена", callback_data="give_menu_cancel")
+    )
+
+    bot.edit_message_text(text, chat_id, data["message_id"], reply_markup=markup)
+
+# === ПОДТВЕРЖДЕНИЕ И ПРИМЕНЕНИЕ ===
+@bot.callback_query_handler(func=lambda c: c.data in ["give_menu_confirm", "give_menu_cancel"])
+def confirm_give_menu(call):
+    chat_id = call.message.chat.id
+    data = pending_give_menu.get(chat_id)
+
+    if not data:
+        bot.answer_callback_query(call.id, "Сессия истекла.")
+        return
+
+    if call.data == "give_menu_cancel":
+        bot.edit_message_text("❌ Отменено.", chat_id, data["message_id"])
+        pending_give_menu.pop(chat_id, None)
+        return
+
+    # применяем изменения
+    profile = player_profiles[data["target"]]
+    items = data["items"]
+    result = "🎁 Выдача выполнена:\n\n"
+
+    for item, amount in items:
+        if item == "vip":
+            days = abs(amount)
+            profile["vip_until"] = (datetime.now() + timedelta(days=days)).strftime('%Y-%m-%d %H:%M:%S')
+            result += f"👑 VIP: {days} дней\n"
+        else:
+            profile[item] += amount
+            result += f"{item}: {amount}\n"
+
+    # логирование
+    log_give_action(call.from_user.id, data["target"], items)
+
+    # уведомление игроку
+    if PLAYER_NOTIFY and not SILENT_MODE:
+        notify_text = "📥 Вам изменили инвентарь:\n\n"
+        for item, amount in items:
+            notify_text += f"• {item}: {amount}\n"
+        try:
+            bot.send_message(data["target"], notify_text)
+        except:
+            pass
+
+    # редактируем сообщение админа
+    if SILENT_MODE:
+        bot.edit_message_text("✔ Выдача выполнена (скрытый режим).", chat_id, data["message_id"])
+    else:
+        bot.edit_message_text(result, chat_id, data["message_id"])
+
+    pending_give_menu.pop(chat_id, None)
 
 
 @bot.message_handler(commands=['top'])
@@ -5253,7 +6001,7 @@ def notify_night_start(chat_id, players_alive_text):
     private_message_btn.add(types.InlineKeyboardButton(btn_text, url=private_message_url))
 
     # Отправляем изображение с сообщением о начале ночи
-    bot.send_photo(chat_id, 'https://t.me/ProfileChaekBot/7', caption=night_caption, parse_mode="Markdown", reply_markup=private_message_btn)
+    bot.send_photo(chat_id, 'https://t.me/ProfileChaekBot/29559', caption=night_caption, parse_mode="Markdown", reply_markup=private_message_btn)
 
     time.sleep(1.5)
 
@@ -5682,7 +6430,7 @@ async def game_cycle(chat_id):
             for player_id, player in chat.players.items():
                 if not chat.game_running:
                     break
-                if player['role'] not in ['👨🏼 Тату тұрғын', '🤞 Жолы болғыш', '💣 Камикадзе', '👮🏼 Сержант'] and not player.get('action_taken', False):
+                if player['role'] not in ['👨🏼 Тату тұрғын', '🤞 Жолы болғыш', '💣 Камикадзе', '🤦🏼 Самоубийца', '👮🏼 Сержант'] and not player.get('action_taken', False):
                     player['skipped_actions'] += 1
                     if player['skipped_actions'] >= 2:
                         to_remove.append(player_id)
@@ -5693,13 +6441,13 @@ async def game_cycle(chat_id):
             lang = chat_settings.get(chat_id, {}).get("language", "kz")
 
             if lang == 'kz':
-                caption = f'🌤️ *{day_count}-ші күн*\nКүн шығып, өткен түнде төгілген қанды қатыртады...'
+                caption = f'🌞 *{day_count}-ші күн*\nКүн шығып, өткен түнде төгілген қанды қатыртады...'
             if lang == 'ru':
-                caption = f'🌤️ *День {day_count}*\nВосход солнца подсвечивает кровь, пролитую прошлой ночью...'
+                caption = f'🌞 *День {day_count}*\nВосход солнца подсвечивает кровь, пролитую прошлой ночью...'
 
             bot.send_photo(
                 chat_id,
-                'https://t.me/ProfileChaekBot/8',
+                'https://t.me/ProfileChaekBot/29561',
                 caption=caption,
                 parse_mode="Markdown"
             )
@@ -6227,31 +6975,60 @@ def callback_handler(call):
                                   else "🔪 *Маньяк* отправился на ночную охоту...", parse_mode="Markdown")
 
                 elif action == 'vote':
-                    if not chat.is_voting_time:  
-                        bot.answer_callback_query(call.id, text="Қазіргі уақытта дауыс беру мүмкін емес." if lang == 'kz' 
-                                                else "Сейчас нельзя голосовать.")
+                    if not chat.is_voting_time:
+                        bot.answer_callback_query(call.id,
+                            "Қазіргі уақытта дауыс беру мүмкін емес." if lang == 'kz'
+                            else "Сейчас нельзя голосовать."
+                        )
                         return
 
                     if 'vote_counts' not in chat.__dict__:
                         chat.vote_counts = {}
 
                     if player.get('voting_blocked', False) and not player.get('healed_from_lover', False):
-                        bot.answer_callback_query(call.id, text="💃🏼 Менімен бірге бәрін ұмыт..." if lang == 'kz' 
-                                                else "💃🏼 Со мной все забывается...")
+                        bot.answer_callback_query(
+                            call.id,
+                            "💃🏼 Менімен бірге бәрін ұмыт..." if lang == 'kz'
+                            else "💃🏼 Со мной все забывается..."
+                        )
                         return
 
                     if not chat.players[from_id].get('has_voted', False):
+
+        # фиксируем голос
                         victim_name = f"{chat.players[target_id]['name']} {chat.players[target_id].get('last_name', '')}".strip()
                         chat.vote_counts[target_id] = chat.vote_counts.get(target_id, 0) + 1
                         chat.players[from_id]['has_voted'] = True
-                        bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id, 
-                                           text=f"Сіз таңдадыңыз {victim_name}" if lang == 'kz' 
-                                           else f"Вы выбрали {victim_name}")
+
+        # сообщение игроку
+                        bot.edit_message_text(
+                            chat_id=call.message.chat.id,
+                            message_id=call.message.message_id,
+                            text=("Сіз таңдадыңыз " if lang == 'kz' else "Вы выбрали ") + victim_name
+                        )
+
+        # ник кто голосует
                         voter_name = f"[{chat.players[from_id]['name']} {chat.players[from_id].get('last_name', '')}](tg://user?id={from_id})".strip()
+        # ник за кого
                         target_name = f"[{chat.players[target_id]['name']} {chat.players[target_id].get('last_name', '')}](tg://user?id={target_id})".strip()
 
-                        send_message(chat_id, f"{voter_name} өз дауысын {target_name} үшін берді" if lang == 'kz' 
-                                      else f"{voter_name} проголосовал за {target_name}", parse_mode="Markdown")
+        # проверяем настройки анонимности
+                        anon = chat_settings.get(chat_id, {}).get("anonymous_voting", True)
+
+                        if anon:
+            # АНОНИМНОЕ
+                            text = (
+                                f"{voter_name} дауыс берді" if lang == 'kz'
+                                else f"{voter_name} проголосовал"
+                            )
+                        else:
+            # НЕАНОНИМНОЕ
+                            text = (
+                                f"{voter_name} өз дауысын {target_name} үшін берді" if lang == 'kz'
+                                else f"{voter_name} проголосовал за {target_name}"
+                            )
+
+                        send_message(chat_id, text, parse_mode="Markdown")
 
             elif action == 'check':
                 if not chat.is_night:
