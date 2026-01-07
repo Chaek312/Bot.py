@@ -2505,118 +2505,142 @@ def send_zip_to_channel():
     except Exception as e:
         logging.error(f"Ошибка отправки ZIP-архива: {e}")
                 
-
 @bot.message_handler(commands=['start'])
 def start_message(message):
     user_id = message.from_user.id
     chat_id = message.chat.id
 
     if message.chat.type == 'private':
-        user_name = message.from_user.first_name if message.from_user.first_name else "Пользователь"
-        user_last_name = message.from_user.last_name if message.from_user.last_name else ""
+        user_name = message.from_user.first_name or "Пользователь"
+        user_last_name = message.from_user.last_name or ""
+
         profile = get_or_create_profile(user_id, user_name, user_last_name)
-        lang = profile.get('language', 'ru')  # Язык только для приветствия
+        lang = profile.get('language', 'ru')
 
         full_name = f"{user_name} {user_last_name}".strip()
         words_count = len(full_name.split())
         symbols_count = len(full_name)
 
         if words_count + symbols_count > 45:
-            msg = "❗ Ваш ник слишком длинный. Пожалуйста, сделайте его короче (сумма слов и символов не должна превышать 45)."
-            bot.send_message(user_id, msg)
+            bot.send_message(
+                user_id,
+                "❗ Ваш ник слишком длинный. Пожалуйста, сделайте его короче."
+            )
             return
 
         start_content = {
             'kz': {
-                'text': '*Сэлем!*\nМен 🤵🏻 *Мафия* ойнынын жургізуші-ботымын.\nМені чатқа қосып, әкімші етіңіз және тегін ойнай бастаңыз',
+                'text': '*Сэлем!*\nМен 🤵🏻 *Мафия* ойнынын жургізуші-ботымын.',
                 'add_to_group': '🤵🏽 Ботты өз чатыңа қосу',
                 'join_chat': 'Чатка кіру',
                 'news': '📰 Жаңалықтар'
             },
             'ru': {
-                'text': '*Привет!*\nЯ 🤵🏻 *Мафия* бот-ведущий.\nДобавьте меня в чат, сделайте администратором и начните играть бесплатно',
+                'text': '*Привет!*\nЯ 🤵🏻 *Мафия* бот-ведущий.',
                 'add_to_group': '🤵🏽 Добавить бота в свой чат',
                 'join_chat': 'Войти в чат',
                 'news': '📰 Новости'
             }
         }
+
         content = start_content[lang]
         text = message.text
 
+        # ---------- JOIN ----------
         if len(text.split()) > 1:
             param = text.split()[1]
             if param.startswith("join_"):
                 game_chat_id = int(param.split('_')[1])
-                lang = chat_settings.get(game_chat_id, {}).get("language", "kz")  # Язык чата
+                lang = chat_settings.get(game_chat_id, {}).get("language", "kz")
 
-                if user_id in user_game_registration:
-                    if user_game_registration[user_id] != game_chat_id:
-                        if lang == 'kz':
-                            bot.send_message(user_id, "🚫 Басқа ойынға қосылып қойғансыз")
-                        if lang == 'ru':
-                            bot.send_message(user_id, "🚫 Вы уже зарегистрированы в другой игре")
-                        return
+                if user_id in user_game_registration and user_game_registration[user_id] != game_chat_id:
+                    bot.send_message(
+                        user_id,
+                        "🚫 Вы уже зарегистрированы в другой игре" if lang == 'ru'
+                        else "🚫 Басқа ойынға қосылып қойғансыз"
+                    )
+                    return
 
                 chat = chat_list.get(game_chat_id)
-                if chat:
-                    try:
-                        chat_member = bot.get_chat_member(game_chat_id, user_id)
-                        if chat_member.status in ['member', 'administrator', 'creator'] and (chat_member.can_send_messages is None or chat_member.can_send_messages):
-                            if chat.game_running:
-                                if lang == 'kz':
-                                    bot.send_message(user_id, "🚫 Қосылу мүмкін болмады, ойын басталып кетті!")
-                                if lang == 'ru':
-                                    bot.send_message(user_id, "🚫 Не удалось присоединиться — игра уже началась!")
-                            elif not chat.button_id:
-                                if lang == 'kz':
-                                    bot.send_message(user_id, "🚫 Қосылу мүмкін болмады, ойын әлі басталмаған!")
-                                if lang == 'ru':
-                                    bot.send_message(user_id, "🚫 Не удалось присоединиться — игра ещё не началась!")
-                            elif user_id not in chat.players:
-                                full_name = f"{user_name} {user_last_name}".strip()
-                                chat.players[user_id] = {'name': full_name, 'role': 'ждет', 'skipped_actions': 0}
-                                user_game_registration[user_id] = game_chat_id
+                if not chat:
+                    return
 
-                                if lang == 'kz':
-                                    bot.send_message(user_id, f"🎲 {bot.get_chat(game_chat_id).title} чатындағы ойынға қосылдыңыз!")
-                                if lang == 'ru':
-                                    bot.send_message(user_id, f"🎲 Вы присоединились к игре в чате {bot.get_chat(game_chat_id).title}!")
+                try:
+                    chat_member = bot.get_chat_member(game_chat_id, user_id)
 
-                                new_text = players_alive(chat.players, "registration", game_chat_id)
-                                new_markup = types.InlineKeyboardMarkup(
-                                    [[types.InlineKeyboardButton(
-                                        '🤵🏻 Қосылу' if lang == 'kz' else '🤵🏻 Присоединиться',
-                                        url=f'https://t.me/{bot.get_me().username}?start=join_{game_chat_id}'
-                                    )]]
-                                )
+                    # ===== ИСПРАВЛЕННАЯ ПРОВЕРКА ПРАВ =====
+                    if chat_member.status in ['administrator', 'creator']:
+                        can_send = True
+                    elif chat_member.status == 'restricted':
+                        can_send = chat_member.can_send_messages
+                    else:
+                        can_send = True
+                    # ====================================
 
-                                try:
-                                    schedule_update(game_chat_id, chat)
-                                except Exception as e:
-                                    logging.error(f"Ошибка обновления сообщения: {e}")
+                    if not can_send:
+                        bot.send_message(
+                            user_id,
+                            "🚫 У вас нет прав писать в чате" if lang == 'ru'
+                            else "🚫 Топта хабарлама жіберуге рұқсатыңыз жоқ"
+                        )
+                        return
 
-                                with game_start_lock:
-                                    if len(chat.players) >= 20 and not chat.game_running and chat.button_id:
-                                       _start_game(game_chat_id)
+                    if chat.game_running:
+                        bot.send_message(
+                            user_id,
+                            "🚫 Игра уже началась" if lang == 'ru'
+                            else "🚫 Ойын басталып кетті"
+                        )
+                        return
 
-                            else:
-                                if lang == 'kz':
-                                    bot.send_message(user_id, "✅ Ойынға қосылдыңыз! :)")
-                                if lang == 'ru':
-                                    bot.send_message(user_id, "✅ Вы уже присоединились к игре! :)")
-                        else:
-                            if lang == 'kz':
-                                bot.send_message(user_id, "🚫 Ойынға қосыла алмайсыз, себебі топта хабарлама жіберуге рұқсатыңыз жоқ.")
-                            if lang == 'ru':
-                                bot.send_message(user_id, "🚫 Не удалось присоединиться — у вас нет прав на отправку сообщений в группе.")
-                    except Exception as e:
-                        logging.error(f"Ошибка при проверке прав доступа: {e}")
-                        if lang == 'kz':
-                            bot.send_message(user_id, "🚫 Қосылу мүмкін болмады")
-                        if lang == 'ru':
-                            bot.send_message(user_id, "🚫 Не удалось присоединиться")
+                    if not chat.button_id:
+                        bot.send_message(
+                            user_id,
+                            "🚫 Игра ещё не началась" if lang == 'ru'
+                            else "🚫 Ойын әлі басталмаған"
+                        )
+                        return
+
+                    if user_id not in chat.players:
+                        chat.players[user_id] = {
+                            'name': full_name,
+                            'role': 'ждет',
+                            'skipped_actions': 0
+                        }
+                        user_game_registration[user_id] = game_chat_id
+
+                        bot.send_message(
+                            user_id,
+                            f"🎲 Вы присоединились к игре в чате {bot.get_chat(game_chat_id).title}!"
+                            if lang == 'ru'
+                            else f"🎲 {bot.get_chat(game_chat_id).title} чатындағы ойынға қосылдыңыз!"
+                        )
+
+                        try:
+                            schedule_update(game_chat_id, chat)
+                        except Exception as e:
+                            logging.error(f"Ошибка обновления: {e}")
+
+                        with game_start_lock:
+                            if len(chat.players) >= 20 and not chat.game_running:
+                                _start_game(game_chat_id)
+                    else:
+                        bot.send_message(
+                            user_id,
+                            "✅ Вы уже в игре" if lang == 'ru'
+                            else "✅ Сіз ойынға қосылғансыз"
+                        )
+
+                except Exception as e:
+                    logging.error(f"Ошибка при проверке прав доступа: {e}")
+                    bot.send_message(
+                        user_id,
+                        "🚫 Не удалось присоединиться" if lang == 'ru'
+                        else "🚫 Қосылу мүмкін болмады"
+                    )
                 return
 
+        # ---------- ГЛАВНОЕ МЕНЮ ----------
         bot_username = bot.get_me().username
         add_to_group_url = f'https://t.me/{bot_username}?startgroup=bot_command'
 
@@ -2627,8 +2651,8 @@ def start_message(message):
 
         bot.send_message(chat_id, content['text'], reply_markup=keyboard, parse_mode="Markdown")
 
+    # ---------- ГРУППА ----------
     elif message.chat.type in ['group', 'supergroup']:
-        user_id = message.from_user.id
         bot.delete_message(chat_id, message.message_id)
 
         chat_member = bot.get_chat_member(chat_id, user_id)
