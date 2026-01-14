@@ -134,6 +134,8 @@ class Game:
         players_list = ", ".join([f"{player['name']} {player.get('last_name', '')}" for player in self.players.values()])
         return players_list
 
+    
+    
     def remove_player(chat, player_id, killed_by=None):
         if player_id in chat.players:
             dead_player = chat.players.pop(player_id)
@@ -165,8 +167,6 @@ class Game:
                     chat.dead_last_words[player_id] = full_name  # Сохраняем полное имя
                 except Exception as e:
                     print(f"Не удалось отправить сообщение игроку {full_name}: {e}")
-    
-    
 
 def start_kamikaze_choice(chat, kamikaze_id):
     """Запускает выбор игрока для камикадзе после повешения в ЛИЧНОМ СООБЩЕНИИ"""
@@ -371,7 +371,7 @@ def _start_game(chat_id):
 
     # Назначение Дона (первый в списке)
     don_id = players_list[0][0]
-    change_role(don_id, chat.players, '🧔🏻‍♂️ Дон', '', chat)
+    change_role(don_id, chat.players, '🤵🏻‍♂️ Дон', '', chat)
     chat.don_id = don_id
     mafia_assigned += 1
 
@@ -468,9 +468,9 @@ def change_role(player_id, player_dict, new_role, text, game):
     # Получаем язык из настроек чата
     # Тексты для всех ролей
     role_texts = {
-        '🧔🏻‍♂️ Дон': {
-            "kz": "Сен - 🧔🏻‍♂️ Донсың!\n\n(Мафияның басшысы!)Бұл түні кімнің мәңгі ұйқыға кететінін шешесің...",
-            "ru": "Вы - 🧔🏻‍♂️ Дон!\n\nГлава мафии! Вы решаете, кто отправится в вечный сон этой ночью..."
+        '🤵🏻‍♂️ Дон': {
+            "kz": "Сен - 🤵🏻‍♂️ Донсың!\n\n(Мафияның басшысы!)Бұл түні кімнің мәңгі ұйқыға кететінін шешесің...",
+            "ru": "Вы - 🤵🏻‍♂️ Дон!\n\nГлава мафии! Вы решаете, кто отправится в вечный сон этой ночью..."
         },
         '🤵🏻 Мафия': {
             "kz": "Сіз — 🤵🏻 Мафия!\n\nМіндетіңіз - Донға бағыну және сізге қарсы шыққандарды өлтіру. Бір күні сіз де Дон болуыңыз мүмкін...",
@@ -534,7 +534,7 @@ def change_role(player_id, player_dict, new_role, text, game):
         logging.error(f"Не удалось отправить сообщение игроку {full_name}: {e}")
         
     # Установка специальных флагов для особых ролей
-    if new_role == '🧔🏻‍♂️ Дон':
+    if new_role == '🤵🏻‍♂️ Дон':
         player_dict[player_id]['don'] = True
         game.don_id = player_id
     else:
@@ -573,7 +573,7 @@ def list_btn(player_dict, user_id, player_role, text, action_type, message_id=No
         # Убираем мафию и дона из списка для мафии и дона
         if player_role in ['мафия', 'don']:
             logging.info(f"Текущая роль {player_role}, проверяем игрока {val['name']} с ролью {val['role']}")
-            if val['role'] in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон']:
+            if val['role'] in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон']:
                 logging.info(f"Игрок {val['name']} (Мафия или Дон) исключен из списка выбора.")
                 continue  # Пропускаем союзников
 
@@ -687,7 +687,7 @@ def day_message(players, chat_id):
     roles = [player['role'] for player_id, player in sorted_players if player['role'] != 'dead']
     peaceful_roles = ['👨🏼‍⚕️ Дәрігер', '🧙‍♂️ Қаңғыбас', '🕵🏼 Комиссар', '🤞 Жолы болғыш', 
                      '💣 Камикадзе', '💃🏼 Көңілдес', '👮🏼 Сержант', '👨🏼 Тату тұрғын']
-    mafia_roles = ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы']
+    mafia_roles = ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы']
     maniac_roles = ['🔪 Жауыз', '🤦🏼 Самоубийца']
 
     role_counts = {}
@@ -904,7 +904,7 @@ def voice_handler(chat_id):
 
 def send_message_to_mafia(chat, message):
     for player_id, player in chat.players.items():
-        if player['role'] in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон']:
+        if player['role'] in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон']:
             full_name = f"{player['name']} {player.get('last_name', '')}"
             try:
                 send_message(player_id, message, parse_mode='Markdown', protect_content=True)  # Добавлено
@@ -914,10 +914,10 @@ def send_message_to_mafia(chat, message):
 def notify_mafia(chat, sender_name, sender_last_name, message, sender_id):
     sender_full_name = f"{sender_name} {sender_last_name}"
     for player_id, player in chat.players.items():
-        if player['role'] in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон'] and player_id != sender_id:
+        if player['role'] in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон'] and player_id != sender_id:
             # Формируем префикс с эмодзи и ролью
-            if chat.players[sender_id]['role'] == '🧔🏻‍♂️ Дон':
-                prefix = f"🧔🏻‍♂️ Дон {sender_full_name}:"
+            if chat.players[sender_id]['role'] == '🤵🏻‍♂️ Дон':
+                prefix = f"🤵🏻‍♂️ Дон {sender_full_name}:"
             else:
                 prefix = f"🤵🏻 Мафия {sender_full_name}:"
 
@@ -1094,8 +1094,8 @@ def notify_mafia_and_don(chat):
     players_copy = list(chat.players.items())
 
     for player_id, player in players_copy:
-        if player['role'] == '🧔🏻‍♂️ Дон':
-            mafia_and_don_list.append(f"[{player['name']}](tg://user?id={player_id}) - 🧔🏻‍♂️ *Дон*")
+        if player['role'] == '🤵🏻‍♂️ Дон':
+            mafia_and_don_list.append(f"[{player['name']}](tg://user?id={player_id}) - 🤵🏻‍♂️ *Дон*")
         elif player['role'] == '🤵🏻 Мафия':
             mafia_and_don_list.append(f"[{player['name']}](tg://user?id={player_id}) - 🤵🏻 *Мафия*")
 
@@ -1108,7 +1108,7 @@ def notify_mafia_and_don(chat):
     message = messages[lang] + "\n".join(mafia_and_don_list)
 
     for player_id, player in players_copy:
-        if player['role'] in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон']:
+        if player['role'] in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон']:
             try:
                 send_message(player_id, message, parse_mode='Markdown', protect_content=True)
             except Exception as e:
@@ -1275,7 +1275,7 @@ def handle_confirm_vote(chat):
                     start_kamikaze_choice(chat, dead_id)
                 
                 chat.remove_player(dead_id, killed_by='lynch')
-                if dead['role'] == '🧔🏻‍♂️ Дон':
+                if dead['role'] == '🤵🏻‍♂️ Дон':
                     check_and_transfer_don_role(chat)
                 if dead['role'] == '🕵🏼 Комиссар':
                     check_and_transfer_sheriff_role(chat)
@@ -1346,10 +1346,10 @@ def check_game_end(chat, game_start_time):
         }
         return (mafia_team_count, non_mafia_count) in mafia_win_cases
 
-    mafia_count = len([p for p in chat.players.values() if p['role'] in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон'] and p['status'] != 'dead'])
+    mafia_count = len([p for p in chat.players.values() if p['role'] in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон'] and p['status'] != 'dead'])
     lawyer_count = len([p for p in chat.players.values() if p['role'] == '👨🏼‍💼 Қорғаушы' and p['status'] != 'dead'])
     maniac_count = len([p for p in chat.players.values() if p['role'] == '🔪 Жауыз' and p['status'] != 'dead'])
-    non_mafia_count = len([p for p in chat.players.values() if p['role'] not in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы', '🔪 Жауыз'] and p['status'] != 'dead'])
+    non_mafia_count = len([p for p in chat.players.values() if p['role'] not in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы', '🔪 Жауыз'] and p['status'] != 'dead'])
     total_mafia_team = mafia_count + lawyer_count
 
     alive_players = [p for p in chat.players.values() if p['status'] != 'dead']
@@ -1397,29 +1397,29 @@ def check_game_end(chat, game_start_time):
         winners = [
             f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
             for k, v in chat.players.items()
-            if v['role'] not in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы', '🔪 Жауыз', '🤦🏼 Самоубийца']
+            if v['role'] not in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы', '🔪 Жауыз', '🤦🏼 Самоубийца']
             and v['status'] != 'dead'
         ]
-        winners_ids = [k for k, v in chat.players.items() if v['role'] not in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы', '🔪 Жауыз', '🤦🏼 Самоубийца'] and v['status'] != 'dead']
+        winners_ids = [k for k, v in chat.players.items() if v['role'] not in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы', '🔪 Жауыз', '🤦🏼 Самоубийца'] and v['status'] != 'dead']
 
     elif mafia_count == 1 and total_mafia_team == 1 and alive_count == 1:
         winning_team = text['teams']['Мафия']
         winners = [
             f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
             for k, v in chat.players.items()
-            if v['role'] == '🧔🏻‍♂️ Дон' and v['status'] != 'dead'
+            if v['role'] == '🤵🏻‍♂️ Дон' and v['status'] != 'dead'
         ]
-        winners_ids = [k for k, v in chat.players.items() if v['role'] == '🧔🏻‍♂️ Дон' and v['status'] != 'dead']
+        winners_ids = [k for k, v in chat.players.items() if v['role'] == '🤵🏻‍♂️ Дон' and v['status'] != 'dead']
 
     elif is_mafia_win(alive_count, total_mafia_team):
         winning_team = text['teams']['Мафия']
         winners = [
             f"[{get_full_name(v)}](tg://user?id={k}) - {translate_role(v['role'], lang)}"
             for k, v in chat.players.items()
-            if v['role'] in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы']
+            if v['role'] in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы']
             and v['status'] != 'dead'
         ]
-        winners_ids = [k for k, v in chat.players.items() if v['role'] in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы'] and v['status'] != 'dead']
+        winners_ids = [k for k, v in chat.players.items() if v['role'] in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон', '👨🏼‍💼 Қорғаушы'] and v['status'] != 'dead']
 
     else:
         return False
@@ -1657,6 +1657,7 @@ def disable_vote_buttons(chat):
 
 def send_voting_results(chat, yes_votes, no_votes, player_name=None, player_last_name=None, player_role=None):
     lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
+    hanging_shield_enabled = chat_settings.get(chat.chat_id, {}).get("hanging_shield_buff", True)  # ✅ Проверяем настройку защиты от повешения
     
     # Словарь переводов ролей
     role_translations = {
@@ -1724,7 +1725,13 @@ def send_voting_results(chat, yes_votes, no_votes, player_name=None, player_last
     t = texts.get(lang, texts["kz"])
 
     if yes_votes > no_votes:
-        if profile and profile.get('hanging_shield', 0) > 0 and not profile.get('hanging_shield_used', False) and profile.get('hanging_shield_active', False):
+        # ✅ Проверяем включена ли защита от повешения в настройках чата
+        if (hanging_shield_enabled and 
+            profile and 
+            profile.get('hanging_shield', 0) > 0 and 
+            not profile.get('hanging_shield_used', False) and 
+            profile.get('hanging_shield_active', False)):
+            
             profile['hanging_shield'] -= 1
             profile['hanging_shield_used'] = True
 
@@ -1750,6 +1757,7 @@ def send_voting_results(chat, yes_votes, no_votes, player_name=None, player_last
             print(f"Не удалось отправить сообщение в чат {chat.chat_id}: {e}")
 
     return False
+
 
 
 def send_sheriff_menu(chat, sheriff_id, callback_query=None, message_id=None):
@@ -1837,12 +1845,12 @@ def check_and_transfer_don_role(chat):
     # Локализованные тексты
     texts = {
         'ru': {
-            'became_don': 'Теперь ты 🧔🏻‍♂️ Дон!',
-            'don_inherited': '🤵🏻 *Мафия* 🧔🏻‍♂️ *Дон* передал свою роль'
+            'became_don': 'Теперь ты 🤵🏻‍♂️ Дон!',
+            'don_inherited': '🤵🏻 *Мафия* 🤵🏻‍♂️ *Дон* передал свою роль'
         },
         'kz': {
-            'became_don': 'Енді сен 🧔🏻‍♂️ Донсың!',
-            'don_inherited': '🤵🏻 *Мафия* 🧔🏻‍♂️ *Дон* рөлін өзіне мұра етті'
+            'became_don': 'Енді сен 🤵🏻‍♂️ Донсың!',
+            'don_inherited': '🤵🏻 *Мафия* 🤵🏻‍♂️ *Дон* рөлін өзіне мұра етті'
         }
     }[lang]
 
@@ -1851,7 +1859,7 @@ def check_and_transfer_don_role(chat):
         alive_mafia = [player_id for player_id, player in chat.players.items() if player['role'] == '🤵🏻 Мафия']
         if alive_mafia:
             new_don_id = alive_mafia[0]
-            change_role(new_don_id, chat.players, '🧔🏻‍♂️ Дон', texts['became_don'], chat)
+            change_role(new_don_id, chat.players, '🤵🏻‍♂️ Дон', texts['became_don'], chat)
             chat.don_id = new_don_id
             send_message(chat.chat_id, texts['don_inherited'], parse_mode="Markdown")
         else:
@@ -2065,7 +2073,7 @@ def notify_police(chat):
 # Глобальный словарь переводов ролей (вынеси в начало файла)
 role_translations = {
     'ru': {
-        '🧔🏻‍♂️ Дон': '🧔🏻‍♂️ Дон',
+        '🤵🏻‍♂️ Дон': '🤵🏻‍♂️ Дон',
         '🤵🏻 Мафия': '🤵🏻 Мафия',
         '👨🏼‍⚕️ Дәрігер': '👨🏼‍⚕️ Доктор',
         '🕵🏼 Комиссар': '🕵🏼 Комиссар',
@@ -2082,7 +2090,7 @@ role_translations = {
         '💣': '💣 Камикадзе'
     },
     'kz': {
-        '🧔🏻‍♂️ Дон': '🧔🏻‍♂️ Дон',
+        '🤵🏻‍♂️ Дон': '🤵🏻‍♂️ Дон',
         '🤵🏻 Мафия': '🤵🏻 Мафия',
         '👨🏼‍⚕️ Дәрігер': '👨🏼‍⚕️ Дәрігер',
         '🕵🏼 Комиссар': '🕵🏼 Комиссар',
@@ -2106,11 +2114,11 @@ def translate_role(role, lang):
 
 def process_deaths(chat, killed_by_mafia, killed_by_sheriff, killed_by_bomber=None, killed_by_maniac=None):
     lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
+    shield_enabled = chat_settings.get(chat.chat_id, {}).get("shield_buff", True)  # ✅ Проверяем настройку щита
     combined_message = ""
     deaths = {}
-    doc_visit_notified = set()  # 🔒 Чтобы не отправлять одно и то же сообщение дважды
+    doc_visit_notified = set()
 
-    
     if hasattr(chat, 'kamikaze_kill') and chat.kamikaze_kill:
         victim_id, victim = chat.kamikaze_kill
         deaths[victim_id] = {'victim': victim, 'roles': ['💣 Камикадзе']}
@@ -2151,6 +2159,10 @@ def process_deaths(chat, killed_by_mafia, killed_by_sheriff, killed_by_bomber=No
         roles_involved = death_info['roles']
 
         def check_shield_or_doc(victim_id, victim):
+            # ✅ Проверяем включен ли щит в настройках чата
+            if not shield_enabled:
+                return False
+                
             if '💤' not in roles_involved:
                 profile = player_profiles.get(victim_id, {})
                 shield_count = profile.get('shield', 0)
@@ -2213,7 +2225,6 @@ def process_deaths(chat, killed_by_mafia, killed_by_sheriff, killed_by_bomber=No
                     else:
                         deaths[killer_id]['roles'].append('💣 Камикадзе')
 
-    # 👇 Сообщение докторской цели, если она не умерла и ещё не уведомлена
     if chat.doc_target and chat.doc_target not in deaths and chat.doc_target not in doc_visit_notified:
         doc_visit_notified.add(chat.doc_target)
         doc_target = chat.players.get(chat.doc_target)
@@ -2588,7 +2599,12 @@ def handle_zip_upload(message):
                     'mafia_ratio': int(row['Mafia Ratio']),
                     'players_to_start': int(row.get('Players To Start', 20)),
                     'language': row.get('Language', 'ru'),
-                    'anonymous_voting': row.get('Anonymous Voting', 'Yes') == 'Yes'  # ← ДОБАВЛЕНО
+                    'anonymous_voting': row.get('Anonymous Voting', 'Yes') == 'Yes',
+                    # ✅ ДОБАВЛЯЕМ БАФФЫ
+                    'shield_buff': row.get('Shield Buff', 'Yes') == 'Yes',
+                    'docs_buff': row.get('Docs Buff', 'Yes') == 'Yes',
+                    'hanging_shield_buff': row.get('Hanging Shield Buff', 'Yes') == 'Yes',
+                    'gun_buff': row.get('Gun Buff', 'Yes') == 'Yes'
                 }
 
     bot.reply_to(message, "✅ Данные успешно загружены из архива!")
@@ -2647,7 +2663,12 @@ def handle_document(message):
                                     'day_time': int(row['Day Time']),
                                     'voting_time': int(row['Voting Time']),
                                     'confirmation_time': int(row['Confirmation Time']),
-                                    'mafia_ratio': int(row['Mafia Ratio'])
+                                    'mafia_ratio': int(row['Mafia Ratio']),
+                                    # ✅ ДОБАВЛЯЕМ БАФФЫ ДЛЯ СТАРОГО ФОРМАТА
+                                    'shield_buff': row.get('Shield Buff', 'Yes') == 'Yes',
+                                    'docs_buff': row.get('Docs Buff', 'Yes') == 'Yes',
+                                    'hanging_shield_buff': row.get('Hanging Shield Buff', 'Yes') == 'Yes',
+                                    'gun_buff': row.get('Gun Buff', 'Yes') == 'Yes'
                                 }
                             except Exception as e:
                                 send_message(channel_id, f"❌ Ошибка в строке настроек: {e}")
@@ -2743,7 +2764,12 @@ def send_zip_to_channel():
             'Mafia Ratio',
             'Players To Start',
             'Language',
-            'Anonymous Voting'  # ← ДОБАВЛЕНО
+            'Anonymous Voting',
+            # ✅ ДОБАВЛЯЕМ КОЛОНКИ БАФФОВ
+            'Shield Buff',
+            'Docs Buff',
+            'Hanging Shield Buff',
+            'Gun Buff'
         ])
 
         for chat_id, settings in chat_settings.items():
@@ -2761,7 +2787,12 @@ def send_zip_to_channel():
                 settings.get('mafia_ratio', 4),
                 settings.get('players_to_start', 20),
                 settings.get('language', 'ru'),
-                'Yes' if settings.get('anonymous_voting', True) else 'No'  # ← ДОБАВЛЕНО
+                'Yes' if settings.get('anonymous_voting', True) else 'No',
+                # ✅ СОХРАНЯЕМ БАФФЫ
+                'Yes' if settings.get('shield_buff', True) else 'No',
+                'Yes' if settings.get('docs_buff', True) else 'No',
+                'Yes' if settings.get('hanging_shield_buff', True) else 'No',
+                'Yes' if settings.get('gun_buff', True) else 'No'
             ])
         settings_csv.seek(0)
         zip_file.writestr('chat_settings.csv', settings_csv.getvalue())
@@ -2795,7 +2826,8 @@ def start_message(message):
         if words_count + symbols_count > 45:
             bot.send_message(
                 user_id,
-                "❗ Ваш ник слишком длинный. Пожалуйста, сделайте его короче."
+                "❗ Ваш ник слишком длинный. Пожалуйста, сделайте его короче "
+                "(сумма слов и символов не должна превышать 45)."
             )
             return
 
@@ -2831,8 +2863,8 @@ def start_message(message):
                     bot.send_message(
                         user_id,
                         "🚫 Вы уже зарегистрированы в другой игре"
-                        if lang == 'ru' else
-                        "🚫 Басқа ойынға қосылып қойғансыз"
+                        if lang == 'ru'
+                        else "🚫 Басқа ойынға қосылып қойғансыз"
                     )
                     return
 
@@ -2843,41 +2875,39 @@ def start_message(message):
                 try:
                     chat_member = bot.get_chat_member(game_chat_id, user_id)
 
-                    # ===== ИСПРАВЛЕННАЯ ПРОВЕРКА ПРАВ =====
-                    if (
-                        chat_member.status in ['administrator', 'creator']
-                        or chat_member.status == 'member'
-                        or (chat_member.status == 'restricted' and chat_member.can_send_messages)
-                    ):
+                    # ===== ЕДИНСТВЕННО ПРАВИЛЬНАЯ ПРОВЕРКА =====
+                    if chat_member.status in ['administrator', 'creator', 'member']:
                         can_send = True
+                    elif chat_member.status == 'restricted':
+                        can_send = chat_member.can_send_messages
                     else:
                         can_send = False
-                    # ====================================
+                    # ==========================================
 
                     if not can_send:
                         bot.send_message(
                             user_id,
-                            "🚫 У вас нет прав отправлять сообщения в группе"
-                            if lang == 'ru' else
-                            "🚫 Топта хабарлама жіберуге рұқсатыңыз жоқ"
+                            "🚫 У вас нет прав на отправку сообщений в группе"
+                            if lang == 'ru'
+                            else "🚫 Топта хабарлама жіберуге рұқсатыңыз жоқ"
                         )
                         return
 
                     if chat.game_running:
                         bot.send_message(
                             user_id,
-                            "🚫 Игра уже началась"
-                            if lang == 'ru' else
-                            "🚫 Ойын басталып кетті"
+                            "🚫 Не удалось присоединиться — игра уже началась!"
+                            if lang == 'ru'
+                            else "🚫 Қосылу мүмкін болмады, ойын басталып кетті!"
                         )
                         return
 
                     if not chat.button_id:
                         bot.send_message(
                             user_id,
-                            "🚫 Игра ещё не началась"
-                            if lang == 'ru' else
-                            "🚫 Ойын әлі басталмаған"
+                            "🚫 Не удалось присоединиться — игра ещё не началась!"
+                            if lang == 'ru'
+                            else "🚫 Қосылу мүмкін болмады, ойын әлі басталмаған!"
                         )
                         return
 
@@ -2892,8 +2922,8 @@ def start_message(message):
                         bot.send_message(
                             user_id,
                             f"🎲 Вы присоединились к игре в чате {bot.get_chat(game_chat_id).title}!"
-                            if lang == 'ru' else
-                            f"🎲 {bot.get_chat(game_chat_id).title} чатындағы ойынға қосылдыңыз!"
+                            if lang == 'ru'
+                            else f"🎲 {bot.get_chat(game_chat_id).title} чатындағы ойынға қосылдыңыз!"
                         )
 
                         try:
@@ -2909,8 +2939,8 @@ def start_message(message):
                         bot.send_message(
                             user_id,
                             "✅ Вы уже присоединились к игре! :)"
-                            if lang == 'ru' else
-                            "✅ Ойынға қосылдыңыз! :)"
+                            if lang == 'ru'
+                            else "✅ Ойынға қосылдыңыз! :)"
                         )
 
                 except Exception as e:
@@ -2918,8 +2948,8 @@ def start_message(message):
                     bot.send_message(
                         user_id,
                         "🚫 Не удалось присоединиться"
-                        if lang == 'ru' else
-                        "🚫 Қосылу мүмкін болмады"
+                        if lang == 'ru'
+                        else "🚫 Қосылу мүмкін болмады"
                     )
                 return
 
@@ -2958,7 +2988,7 @@ def join_chat_callback(call):
     # ❗ Чаты, к которым надо дать кнопку
     #   key = chat_id группы
     chat_targets = [
-        -1003411473049    # Premium KZ
+        -1002571779811    # Premium KZ
     ]
 
     # Создаём клавиатуру
@@ -3125,11 +3155,27 @@ TEXTS = {
         'admin_only_enabled': "Тек әкімші ойынды бастай алады",
         'admin_only_disabled': "Кез келген ойынды бастай алады",
         'mafia_ratio_changed': "Мафия саны өзгертілді",
-
-        # 🔥 ДОБАВЛЕННОЕ
         'anonymous_vote': "😶‍🌫️ Анонимді дауыс беру",
         'anon_vote_enabled': "Анонимді дауыс беру қосылды",
-        'anon_vote_disabled': "Анонимді дауыс беру өшірілді"
+        'anon_vote_disabled': "Анонимді дауыс беру өшірілді",
+        'buffs': "Баффтар",
+        'choose_buff': "Өзгерткіңіз келетін баффты таңдаңыз:",
+        'shield_buff': "⚔️ Қорғаныс",
+        'shield_question': "Осы чатта Қорғаныс баффын қолдануға рұқсат ету керек пе?",
+        'shield_enabled': "Қорғаныс баффы қосылды",
+        'shield_disabled': "Қорғаныс баффы өшірілді",
+        'docs_buff': "📂 Жалған құжаттар",
+        'docs_question': "Осы чатта жалған құжаттар баффын қолдануға рұқсат ету керек пе?",
+        'docs_enabled': "Жалған құжаттар баффы қосылды",
+        'docs_disabled': "Жалған құжаттар баффы өшірілді",
+        'hanging_shield_buff': "⚖️ Дарға асудан қорғаныс",
+        'hanging_shield_question': "Осы чатта дарға асудан қорғаныс баффын қолдануға рұқсат ету керек пе?",
+        'hanging_shield_enabled': "Дарға асудан қорғаныс баффы қосылды",
+        'hanging_shield_disabled': "Дарға асудан қорғаныс баффы өшірілді",
+        'gun_buff': "🔫 Тапанша",
+        'gun_question': "Осы чатта пистолет баффын қолдануға рұқсат ету керек пе?",
+        'gun_enabled': "Тапанша баффы қосылды",
+        'gun_disabled': "Тапанша баффы өшірілді"
     },
 
     'ru': {
@@ -3183,11 +3229,27 @@ TEXTS = {
         'admin_only_enabled': "Только админ может запускать игру",
         'admin_only_disabled': "Любой может запускать игру",
         'mafia_ratio_changed': "Количество мафии изменено",
-
-        # 🔥 ДОБАВЛЕННОЕ
         'anonymous_vote': "😶‍🌫️ Анонимное голосование",
         'anon_vote_enabled': "Анонимное голосование включено",
-        'anon_vote_disabled': "Анонимное голосование выключено"
+        'anon_vote_disabled': "Анонимное голосование выключено",
+        'buffs': "Баффы",
+        'choose_buff': "Выберите бафф для изменения:",
+        'shield_buff': "⚔️ Щит",
+        'shield_question': "Разрешить использовать бафф щита в этом чате?",
+        'shield_enabled': "Бафф щита включен",
+        'shield_disabled': "Бафф щита выключен",
+        'docs_buff': "📂 Фальшивые документы",
+        'docs_question': "Разрешить использовать бафф фальшивых документов в этом чате?",
+        'docs_enabled': "Бафф фальшивых документов включен",
+        'docs_disabled': "Бафф фальшивых документов выключен",
+        'hanging_shield_buff': "⚖️ Защита от повешения",
+        'hanging_shield_question': "Разрешить использовать бафф защиты от повешения в этом чате?",
+        'hanging_shield_enabled': "Бафф защиты от повешения включен",
+        'hanging_shield_disabled': "Бафф защиты от повешения выключен",
+        'gun_buff': "🔫 Пистолет",
+        'gun_question': "Разрешить использовать бафф пистолета в этом чате?",
+        'gun_enabled': "Бафф пистолета включен",
+        'gun_disabled': "Бафф пистолета выключен"
     }
 }
 
@@ -3195,6 +3257,7 @@ def get_text(chat_id, key):
     """Получает текст на нужном языке"""
     lang = chat_settings.get(chat_id, {}).get("language", "kz")
     return TEXTS[lang].get(key, key)
+
 
 @bot.message_handler(commands=['settings'])
 def settings_handler(message):
@@ -3226,9 +3289,13 @@ def settings_handler(message):
             "day_time": 60,
             "voting_time": 45,
             "players_to_start": 20,
-            "anonymous_voting": True,
+            "anonymous_voting": False,
             "confirmation_time": 30,
-            "mafia_ratio": 4
+            "mafia_ratio": 4,
+            "shield_buff": True,
+            "docs_buff": True,
+            "hanging_shield_buff": True,
+            "gun_buff": True
         }
 
     main_menu_kb = types.InlineKeyboardMarkup()
@@ -3240,6 +3307,7 @@ def settings_handler(message):
     main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'language'), callback_data=f"menu_language_{chat_id}"))
     main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'players_count'), callback_data=f"menu_players_count_{chat_id}"))
     main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'anonymous_vote'), callback_data=f"menu_anon_vote_{chat_id}"))
+    main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'buffs'), callback_data=f"menu_buffs_{chat_id}"))
     main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'close'), callback_data=f"close_settings_{chat_id}"))
 
     try:
@@ -3299,6 +3367,7 @@ def handle_main_menu(call):
     main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'language'), callback_data=f"menu_language_{chat_id}"))
     main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'players_count'), callback_data=f"menu_players_count_{chat_id}"))
     main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'anonymous_vote'), callback_data=f"menu_anon_vote_{chat_id}"))
+    main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'buffs'), callback_data=f"menu_buffs_{chat_id}"))
     main_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'close'), callback_data=f"close_settings_{chat_id}"))
 
     bot.edit_message_text(get_text(chat_id, 'select_option'),
@@ -3319,7 +3388,6 @@ def open_anon_vote_menu(call):
     current = chat_settings.get(chat_id, {}).get("anonymous_voting", True)
 
     markup = types.InlineKeyboardMarkup()
-    # ▪️ если выбран, ▫️ если нет
     markup.add(
         types.InlineKeyboardButton(f"{'▪️' if current else '▫️'} {get_text(chat_id, 'yes')}",
                                    callback_data=f"set_anon_vote_yes_{chat_id}"),
@@ -3336,9 +3404,6 @@ def open_anon_vote_menu(call):
     )
     bot.answer_callback_query(call.id)
 
-# ============================
-# Обработчики установки Да/Нет для анонимного голосования
-# ============================
 @bot.callback_query_handler(func=lambda call: call.data.startswith("set_anon_vote_"))
 def set_anon_vote(call):
     parts = call.data.split("_")
@@ -3357,7 +3422,6 @@ def set_anon_vote(call):
         get_text(chat_id, 'anon_vote_enabled') if choice == "yes" else get_text(chat_id, 'anon_vote_disabled')
     )
 
-    # Перерисовываем меню
     open_anon_vote_menu(call)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("menu_players_count_"))
@@ -3374,7 +3438,7 @@ def handle_players_count_menu(call):
     markup = types.InlineKeyboardMarkup(row_width=5)
     buttons = []
 
-    for i in range(4, 26):
+    for i in range(12, 26):
         mark = "▪️" if i == selected else "▫️"
         text = f"{mark} {i}"
         buttons.append(types.InlineKeyboardButton(text, callback_data=f"set_players_count_{i}_{chat_id}"))
@@ -3419,7 +3483,6 @@ def set_players_count(call):
 
     bot.answer_callback_query(call.id, f"{get_text(chat_id, 'players_count_changed')}: {count}")
 
-    # Возвращаемся и обновляем меню
     handle_players_count_menu(call)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("menu_time_"))
@@ -3594,7 +3657,7 @@ def handle_registration_time_menu(call):
         selected = "▪️" if option == current_time else "▫️"
         registration_kb.add(
             types.InlineKeyboardButton(
-                f"{selected} {option[0]} / {option[1]} {get_text(chat_id, 'sec')}",
+                f"{selected} {option[0]} {get_text(chat_id, 'sec')}",
                 callback_data=f"set_registration_time_{option[0]}_{option[1]}_{chat_id}"
             )
         )
@@ -3663,6 +3726,405 @@ def handle_set_night_time(call):
     bot.answer_callback_query(call.id, f"{get_text(chat_id, 'night_time_changed')}: {night_time} {get_text(chat_id, 'sec')}")
     handle_night_time_menu(call)
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith("menu_pin_"))
+def handle_pin_menu(call):
+    user_id = call.from_user.id
+    chat_id = int(call.data.split("_")[-1])
+
+    if not is_admin_or_me(bot, chat_id, user_id):
+        bot.answer_callback_query(call.id, get_text(chat_id, 'no_rights'))
+        return
+
+    current = chat_settings[chat_id]['pin_registration']
+
+    pin_menu_kb = types.InlineKeyboardMarkup()
+    pin_menu_kb.add(
+        types.InlineKeyboardButton(
+            f"{'▪️' if current else '▫️'} {get_text(chat_id, 'yes')}",
+            callback_data=f"set_pin_yes_{chat_id}"
+        ),
+        types.InlineKeyboardButton(
+            f"{'▫️' if current else '▪️'} {get_text(chat_id, 'no')}",
+            callback_data=f"set_pin_no_{chat_id}"
+        )
+    )
+    pin_menu_kb.add(
+        types.InlineKeyboardButton(
+            get_text(chat_id, 'back'),
+            callback_data=f"main_menu_{chat_id}"
+        )
+    )
+
+    bot.edit_message_text(
+        get_text(chat_id, 'pin_question'),
+        chat_id=user_id,
+        message_id=call.message.message_id,
+        reply_markup=pin_menu_kb
+    )
+    bot.answer_callback_query(call.id)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("set_pin_"))
+def set_pin_registration(call):
+    choice = call.data.split("_")[2]  # yes/no
+    chat_id = int(call.data.split("_")[3])
+    user_id = call.from_user.id
+
+    if not is_admin_or_me(bot, chat_id, user_id):
+        bot.answer_callback_query(call.id, get_text(chat_id, 'no_rights'))
+        return
+
+    chat_settings[chat_id]["pin_registration"] = (choice == "yes")
+    bot.answer_callback_query(
+        call.id,
+        get_text(chat_id, 'pin_enabled') if choice == "yes" else get_text(chat_id, 'pin_disabled')
+    )
+
+    handle_pin_menu(call)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("menu_buffs_"))
+def handle_buffs_menu(call):
+    user_id = call.from_user.id
+    chat_id = int(call.data.split("_")[-1])
+
+    if not is_admin_or_me(bot, chat_id, user_id):
+        bot.answer_callback_query(call.id, get_text(chat_id, 'no_rights'))
+        return
+
+    buffs_menu_kb = types.InlineKeyboardMarkup()
+    buffs_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'shield_buff'), callback_data=f"menu_shield_{chat_id}"))
+    buffs_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'docs_buff'), callback_data=f"menu_docs_{chat_id}"))
+    buffs_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'hanging_shield_buff'), callback_data=f"menu_hanging_shield_{chat_id}"))
+    buffs_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'gun_buff'), callback_data=f"menu_gun_{chat_id}"))
+    buffs_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'back'), callback_data=f"main_menu_{chat_id}"))
+
+    bot.edit_message_text(
+        get_text(chat_id, 'choose_buff'),
+        chat_id=user_id,
+        message_id=call.message.message_id,
+        reply_markup=buffs_menu_kb
+    )
+    bot.answer_callback_query(call.id)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("menu_shield_"))
+def handle_shield_menu(call):
+    user_id = call.from_user.id
+    chat_id = int(call.data.split("_")[-1])
+
+    if not is_admin_or_me(bot, chat_id, user_id):
+        bot.answer_callback_query(call.id, get_text(chat_id, 'no_rights'))
+        return
+
+    current = chat_settings[chat_id].get('shield_buff', True)
+
+    shield_menu_kb = types.InlineKeyboardMarkup()
+    shield_menu_kb.add(
+        types.InlineKeyboardButton(
+            f"{'▪️' if current else '▫️'} {get_text(chat_id, 'yes')}",
+            callback_data=f"set_shield_yes_{chat_id}"
+        ),
+        types.InlineKeyboardButton(
+            f"{'▫️' if current else '▪️'} {get_text(chat_id, 'no')}",
+            callback_data=f"set_shield_no_{chat_id}"
+        )
+    )
+    shield_menu_kb.add(
+        types.InlineKeyboardButton(
+            get_text(chat_id, 'back'),
+            callback_data=f"menu_buffs_{chat_id}"
+        )
+    )
+
+    bot.edit_message_text(
+        get_text(chat_id, 'shield_question'),
+        chat_id=user_id,
+        message_id=call.message.message_id,
+        reply_markup=shield_menu_kb
+    )
+    bot.answer_callback_query(call.id)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("set_shield_"))
+def set_shield_buff(call):
+    choice = call.data.split("_")[2]  # yes/no
+    chat_id = int(call.data.split("_")[3])
+    user_id = call.from_user.id
+
+    if not is_admin_or_me(bot, chat_id, user_id):
+        bot.answer_callback_query(call.id, get_text(chat_id, 'no_rights'))
+        return
+
+    chat_settings[chat_id]["shield_buff"] = (choice == "yes")
+    bot.answer_callback_query(
+        call.id,
+        get_text(chat_id, 'shield_enabled') if choice == "yes" else get_text(chat_id, 'shield_disabled')
+    )
+
+    current = chat_settings[chat_id]['shield_buff']
+
+    shield_menu_kb = types.InlineKeyboardMarkup()
+    shield_menu_kb.add(
+        types.InlineKeyboardButton(
+            f"{'▪️' if current else '▫️'} {get_text(chat_id, 'yes')}",
+            callback_data=f"set_shield_yes_{chat_id}"
+        ),
+        types.InlineKeyboardButton(
+            f"{'▫️' if current else '▪️'} {get_text(chat_id, 'no')}",
+            callback_data=f"set_shield_no_{chat_id}"
+        )
+    )
+    shield_menu_kb.add(
+        types.InlineKeyboardButton(
+            get_text(chat_id, 'back'),
+            callback_data=f"menu_buffs_{chat_id}"
+        )
+    )
+
+    bot.edit_message_text(
+        get_text(chat_id, 'shield_question'),
+        chat_id=user_id,
+        message_id=call.message.message_id,
+        reply_markup=shield_menu_kb
+    )
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("menu_docs_"))
+def handle_docs_menu(call):
+    user_id = call.from_user.id
+    chat_id = int(call.data.split("_")[-1])
+
+    if not is_admin_or_me(bot, chat_id, user_id):
+        bot.answer_callback_query(call.id, get_text(chat_id, 'no_rights'))
+        return
+
+    current = chat_settings[chat_id].get('docs_buff', True)
+
+    docs_menu_kb = types.InlineKeyboardMarkup()
+    docs_menu_kb.add(
+        types.InlineKeyboardButton(
+            f"{'▪️' if current else '▫️'} {get_text(chat_id, 'yes')}",
+            callback_data=f"set_docs_yes_{chat_id}"
+        ),
+        types.InlineKeyboardButton(
+            f"{'▫️' if current else '▪️'} {get_text(chat_id, 'no')}",
+            callback_data=f"set_docs_no_{chat_id}"
+        )
+    )
+    docs_menu_kb.add(
+        types.InlineKeyboardButton(
+            get_text(chat_id, 'back'),
+            callback_data=f"menu_buffs_{chat_id}"
+        )
+    )
+
+    bot.edit_message_text(
+        get_text(chat_id, 'docs_question'),
+        chat_id=user_id,
+        message_id=call.message.message_id,
+        reply_markup=docs_menu_kb
+    )
+    bot.answer_callback_query(call.id)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("set_docs_"))
+def set_docs_buff(call):
+    choice = call.data.split("_")[2]  # yes/no
+    chat_id = int(call.data.split("_")[3])
+    user_id = call.from_user.id
+
+    if not is_admin_or_me(bot, chat_id, user_id):
+        bot.answer_callback_query(call.id, get_text(chat_id, 'no_rights'))
+        return
+
+    chat_settings[chat_id]["docs_buff"] = (choice == "yes")
+    bot.answer_callback_query(
+        call.id,
+        get_text(chat_id, 'docs_enabled') if choice == "yes" else get_text(chat_id, 'docs_disabled')
+    )
+
+    current = chat_settings[chat_id]['docs_buff']
+
+    docs_menu_kb = types.InlineKeyboardMarkup()
+    docs_menu_kb.add(
+        types.InlineKeyboardButton(
+            f"{'▪️' if current else '▫️'} {get_text(chat_id, 'yes')}",
+            callback_data=f"set_docs_yes_{chat_id}"
+        ),
+        types.InlineKeyboardButton(
+            f"{'▫️' if current else '▪️'} {get_text(chat_id, 'no')}",
+            callback_data=f"set_docs_no_{chat_id}"
+        )
+    )
+    docs_menu_kb.add(
+        types.InlineKeyboardButton(
+            get_text(chat_id, 'back'),
+            callback_data=f"menu_buffs_{chat_id}"
+        )
+    )
+
+    bot.edit_message_text(
+        get_text(chat_id, 'docs_question'),
+        chat_id=user_id,
+        message_id=call.message.message_id,
+        reply_markup=docs_menu_kb
+    )
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("menu_hanging_shield_"))
+def handle_hanging_shield_menu(call):
+    user_id = call.from_user.id
+    chat_id = int(call.data.split("_")[-1])
+
+    if not is_admin_or_me(bot, chat_id, user_id):
+        bot.answer_callback_query(call.id, get_text(chat_id, 'no_rights'))
+        return
+
+    current = chat_settings[chat_id].get('hanging_shield_buff', True)
+
+    hanging_shield_menu_kb = types.InlineKeyboardMarkup()
+    hanging_shield_menu_kb.add(
+        types.InlineKeyboardButton(
+            f"{'▪️' if current else '▫️'} {get_text(chat_id, 'yes')}",
+            callback_data=f"set_hanging_shield_yes_{chat_id}"
+        ),
+        types.InlineKeyboardButton(
+            f"{'▫️' if current else '▪️'} {get_text(chat_id, 'no')}",
+            callback_data=f"set_hanging_shield_no_{chat_id}"
+        )
+    )
+    hanging_shield_menu_kb.add(
+        types.InlineKeyboardButton(
+            get_text(chat_id, 'back'),
+            callback_data=f"menu_buffs_{chat_id}"
+        )
+    )
+
+    bot.edit_message_text(
+        get_text(chat_id, 'hanging_shield_question'),
+        chat_id=user_id,
+        message_id=call.message.message_id,
+        reply_markup=hanging_shield_menu_kb
+    )
+    bot.answer_callback_query(call.id)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("set_hanging_shield_"))
+def set_hanging_shield_buff(call):
+    choice = call.data.split("_")[3]  # yes/no
+    chat_id = int(call.data.split("_")[4])
+    user_id = call.from_user.id
+
+    if not is_admin_or_me(bot, chat_id, user_id):
+        bot.answer_callback_query(call.id, get_text(chat_id, 'no_rights'))
+        return
+
+    chat_settings[chat_id]["hanging_shield_buff"] = (choice == "yes")
+    bot.answer_callback_query(
+        call.id,
+        get_text(chat_id, 'hanging_shield_enabled') if choice == "yes" else get_text(chat_id, 'hanging_shield_disabled')
+    )
+
+    current = chat_settings[chat_id]['hanging_shield_buff']
+
+    hanging_shield_menu_kb = types.InlineKeyboardMarkup()
+    hanging_shield_menu_kb.add(
+        types.InlineKeyboardButton(
+            f"{'▪️' if current else '▫️'} {get_text(chat_id, 'yes')}",
+            callback_data=f"set_hanging_shield_yes_{chat_id}"
+        ),
+        types.InlineKeyboardButton(
+            f"{'▫️' if current else '▪️'} {get_text(chat_id, 'no')}",
+            callback_data=f"set_hanging_shield_no_{chat_id}"
+        )
+    )
+    hanging_shield_menu_kb.add(
+        types.InlineKeyboardButton(
+            get_text(chat_id, 'back'),
+            callback_data=f"menu_buffs_{chat_id}"
+        )
+    )
+
+    bot.edit_message_text(
+        get_text(chat_id, 'hanging_shield_question'),
+        chat_id=user_id,
+        message_id=call.message.message_id,
+        reply_markup=hanging_shield_menu_kb
+    )
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("menu_gun_"))
+def handle_gun_menu(call):
+    user_id = call.from_user.id
+    chat_id = int(call.data.split("_")[-1])
+
+    if not is_admin_or_me(bot, chat_id, user_id):
+        bot.answer_callback_query(call.id, get_text(chat_id, 'no_rights'))
+        return
+
+    current = chat_settings[chat_id].get('gun_buff', True)
+
+    gun_menu_kb = types.InlineKeyboardMarkup()
+    gun_menu_kb.add(
+        types.InlineKeyboardButton(
+            f"{'▪️' if current else '▫️'} {get_text(chat_id, 'yes')}",
+            callback_data=f"set_gun_yes_{chat_id}"
+        ),
+        types.InlineKeyboardButton(
+            f"{'▫️' if current else '▪️'} {get_text(chat_id, 'no')}",
+            callback_data=f"set_gun_no_{chat_id}"
+        )
+    )
+    gun_menu_kb.add(
+        types.InlineKeyboardButton(
+            get_text(chat_id, 'back'),
+            callback_data=f"menu_buffs_{chat_id}"
+        )
+    )
+
+    bot.edit_message_text(
+        get_text(chat_id, 'gun_question'),
+        chat_id=user_id,
+        message_id=call.message.message_id,
+        reply_markup=gun_menu_kb
+    )
+    bot.answer_callback_query(call.id)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("set_gun_"))
+def set_gun_buff(call):
+    choice = call.data.split("_")[2]  # yes/no
+    chat_id = int(call.data.split("_")[3])
+    user_id = call.from_user.id
+
+    if not is_admin_or_me(bot, chat_id, user_id):
+        bot.answer_callback_query(call.id, get_text(chat_id, 'no_rights'))
+        return
+
+    chat_settings[chat_id]["gun_buff"] = (choice == "yes")
+    bot.answer_callback_query(
+        call.id,
+        get_text(chat_id, 'gun_enabled') if choice == "yes" else get_text(chat_id, 'gun_disabled')
+    )
+
+    current = chat_settings[chat_id]['gun_buff']
+
+    gun_menu_kb = types.InlineKeyboardMarkup()
+    gun_menu_kb.add(
+        types.InlineKeyboardButton(
+            f"{'▪️' if current else '▫️'} {get_text(chat_id, 'yes')}",
+            callback_data=f"set_gun_yes_{chat_id}"
+        ),
+        types.InlineKeyboardButton(
+            f"{'▫️' if current else '▪️'} {get_text(chat_id, 'no')}",
+            callback_data=f"set_gun_no_{chat_id}"
+        )
+    )
+    gun_menu_kb.add(
+        types.InlineKeyboardButton(
+            get_text(chat_id, 'back'),
+            callback_data=f"menu_buffs_{chat_id}"
+        )
+    )
+
+    bot.edit_message_text(
+        get_text(chat_id, 'gun_question'),
+        chat_id=user_id,
+        message_id=call.message.message_id,
+        reply_markup=gun_menu_kb
+    )
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith("menu_"))
 def handle_menu(call):
     user_id = call.from_user.id
@@ -3674,37 +4136,67 @@ def handle_menu(call):
         return
 
     if data.startswith("menu_pin_"):
-        pin_status = get_text(chat_id, 'yes') if chat_settings[chat_id]['pin_registration'] else get_text(chat_id, 'no')
-        pin_menu_kb = types.InlineKeyboardMarkup()
-        pin_menu_kb.add(types.InlineKeyboardButton(pin_status, callback_data=f"toggle_pin_{chat_id}"))
-        pin_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'back'), callback_data=f"main_menu_{chat_id}"))
-        bot.edit_message_text(get_text(chat_id, 'pin_question'),
-                            chat_id=user_id,
-                            message_id=call.message.message_id,
-                            reply_markup=pin_menu_kb)
+        handle_pin_menu(call)
 
     elif data.startswith("menu_leave_"):
-        leave_status = get_text(chat_id, 'yes') if chat_settings[chat_id]['allow_leave_game'] else get_text(chat_id, 'no')
+        current = chat_settings[chat_id]['allow_leave_game']
+
         leave_menu_kb = types.InlineKeyboardMarkup()
-        leave_menu_kb.add(types.InlineKeyboardButton(leave_status, callback_data=f"toggle_leave_{chat_id}"))
-        leave_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'back'), callback_data=f"main_menu_{chat_id}"))
-        bot.edit_message_text(get_text(chat_id, 'leave_question'),
-                            chat_id=user_id,
-                            message_id=call.message.message_id,
-                            reply_markup=leave_menu_kb)
+        leave_menu_kb.add(
+            types.InlineKeyboardButton(
+                f"{'▪️' if current else '▫️'} {get_text(chat_id, 'yes')}",
+                callback_data=f"set_leave_yes_{chat_id}"
+            ),
+            types.InlineKeyboardButton(
+                f"{'▫️' if current else '▪️'} {get_text(chat_id, 'no')}",
+                callback_data=f"set_leave_no_{chat_id}"
+            )
+        )
+        leave_menu_kb.add(
+            types.InlineKeyboardButton(
+                get_text(chat_id, 'back'),
+                callback_data=f"main_menu_{chat_id}"
+            )
+        )
+
+        bot.edit_message_text(
+            get_text(chat_id, 'leave_question'),
+            chat_id=user_id,
+            message_id=call.message.message_id,
+            reply_markup=leave_menu_kb
+        )
 
     elif data.startswith("menu_commands_"):
-        reg_status = get_text(chat_id, 'yes') if chat_settings[chat_id]['allow_registration'] else get_text(chat_id, 'no')
+        current = chat_settings[chat_id]['allow_registration']
+
         commands_menu_kb = types.InlineKeyboardMarkup()
-        commands_menu_kb.add(types.InlineKeyboardButton(reg_status, callback_data=f"toggle_reg_{chat_id}"))
-        commands_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'back'), callback_data=f"main_menu_{chat_id}"))
-        bot.edit_message_text(get_text(chat_id, 'admin_question'),
-                            chat_id=user_id,
-                            message_id=call.message.message_id,
-                            reply_markup=commands_menu_kb)
+        commands_menu_kb.add(
+            types.InlineKeyboardButton(
+                f"{'▪️' if current else '▫️'} {get_text(chat_id, 'yes')}",
+                callback_data=f"set_admin_only_yes_{chat_id}"
+            ),
+            types.InlineKeyboardButton(
+                f"{'▫️' if current else '▪️'} {get_text(chat_id, 'no')}",
+                callback_data=f"set_admin_only_no_{chat_id}"
+            )
+        )
+        commands_menu_kb.add(
+            types.InlineKeyboardButton(
+                get_text(chat_id, 'back'),
+                callback_data=f"main_menu_{chat_id}"
+            )
+        )
+
+        bot.edit_message_text(
+            get_text(chat_id, 'admin_question'),
+            chat_id=user_id,
+            message_id=call.message.message_id,
+            reply_markup=commands_menu_kb
+        )
 
     elif data.startswith("menu_mafia_ratio_"):
         current_ratio = chat_settings[chat_id]["mafia_ratio"]
+
         mafia_ratio_kb = types.InlineKeyboardMarkup()
         mafia_ratio_kb.add(
             types.InlineKeyboardButton(
@@ -3718,79 +4210,107 @@ def handle_menu(call):
                 callback_data=f"set_mafia_ratio_4_{chat_id}"
             )
         )
-        mafia_ratio_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'back'), callback_data=f"main_menu_{chat_id}"))
-        bot.edit_message_text(get_text(chat_id, 'mafia_ratio_desc'),
-                            chat_id=user_id,
-                            message_id=call.message.message_id,
-                            reply_markup=mafia_ratio_kb)
+        mafia_ratio_kb.add(
+            types.InlineKeyboardButton(
+                get_text(chat_id, 'back'),
+                callback_data=f"main_menu_{chat_id}"
+            )
+        )
+
+        bot.edit_message_text(
+            get_text(chat_id, 'mafia_ratio_desc'),
+            chat_id=user_id,
+            message_id=call.message.message_id,
+            reply_markup=mafia_ratio_kb
+        )
 
     bot.answer_callback_query(call.id)
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("toggle_pin_") or 
-                                            call.data.startswith("toggle_leave_") or 
-                                            call.data.startswith("toggle_reg_"))
-def handle_admin_toggle(call):
+@bot.callback_query_handler(func=lambda call: call.data.startswith("set_leave_"))
+def set_leave(call):
+    choice = call.data.split("_")[2]  # yes/no
+    chat_id = int(call.data.split("_")[3])
     user_id = call.from_user.id
-    data = call.data
-    chat_id = int(data.split("_")[-1])
 
     if not is_admin_or_me(bot, chat_id, user_id):
         bot.answer_callback_query(call.id, get_text(chat_id, 'no_rights'))
         return
 
-    if data.startswith("toggle_pin_"):
-        chat_settings[chat_id]["pin_registration"] = not chat_settings[chat_id]["pin_registration"]
-        new_state = get_text(chat_id, 'pin_enabled') if chat_settings[chat_id]["pin_registration"] else get_text(chat_id, 'pin_disabled')
+    chat_settings[chat_id]["allow_leave_game"] = (choice == "yes")
+    bot.answer_callback_query(
+        call.id,
+        get_text(chat_id, 'leave_enabled') if choice == "yes" else get_text(chat_id, 'leave_disabled')
+    )
 
-        pin_menu_kb = types.InlineKeyboardMarkup()
-        pin_menu_kb.add(
-            types.InlineKeyboardButton(
-                get_text(chat_id, 'yes') if chat_settings[chat_id]["pin_registration"] else get_text(chat_id, 'no'),
-                callback_data=f"toggle_pin_{chat_id}"
-            )
+    current = chat_settings[chat_id]['allow_leave_game']
+
+    leave_menu_kb = types.InlineKeyboardMarkup()
+    leave_menu_kb.add(
+        types.InlineKeyboardButton(
+            f"{'▪️' if current else '▫️'} {get_text(chat_id, 'yes')}",
+            callback_data=f"set_leave_yes_{chat_id}"
+        ),
+        types.InlineKeyboardButton(
+            f"{'▫️' if current else '▪️'} {get_text(chat_id, 'no')}",
+            callback_data=f"set_leave_no_{chat_id}"
         )
-        pin_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'back'), callback_data=f"main_menu_{chat_id}"))
-        bot.edit_message_text(get_text(chat_id, 'pin_question'),
-                            chat_id=user_id,
-                            message_id=call.message.message_id,
-                            reply_markup=pin_menu_kb)
-        bot.answer_callback_query(call.id, new_state)
-
-    elif data.startswith("toggle_leave_"):
-        chat_settings[chat_id]["allow_leave_game"] = not chat_settings[chat_id]["allow_leave_game"]
-        new_state = get_text(chat_id, 'leave_enabled') if chat_settings[chat_id]["allow_leave_game"] else get_text(chat_id, 'leave_disabled')
-
-        leave_menu_kb = types.InlineKeyboardMarkup()
-        leave_menu_kb.add(
-            types.InlineKeyboardButton(
-                get_text(chat_id, 'yes') if chat_settings[chat_id]["allow_leave_game"] else get_text(chat_id, 'no'),
-                callback_data=f"toggle_leave_{chat_id}"
-            )
+    )
+    leave_menu_kb.add(
+        types.InlineKeyboardButton(
+            get_text(chat_id, 'back'),
+            callback_data=f"main_menu_{chat_id}"
         )
-        leave_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'back'), callback_data=f"main_menu_{chat_id}"))
-        bot.edit_message_text(get_text(chat_id, 'leave_question'),
-                            chat_id=user_id,
-                            message_id=call.message.message_id,
-                            reply_markup=leave_menu_kb)
-        bot.answer_callback_query(call.id, new_state)
+    )
 
-    elif data.startswith("toggle_reg_"):
-        chat_settings[chat_id]["allow_registration"] = not chat_settings[chat_id]["allow_registration"]
-        new_state = get_text(chat_id, 'admin_only_enabled') if chat_settings[chat_id]["allow_registration"] else get_text(chat_id, 'admin_only_disabled')
+    bot.edit_message_text(
+        get_text(chat_id, 'leave_question'),
+        chat_id=user_id,
+        message_id=call.message.message_id,
+        reply_markup=leave_menu_kb
+    )
 
-        commands_menu_kb = types.InlineKeyboardMarkup()
-        commands_menu_kb.add(
-            types.InlineKeyboardButton(
-                get_text(chat_id, 'yes') if chat_settings[chat_id]["allow_registration"] else get_text(chat_id, 'no'),
-                callback_data=f"toggle_reg_{chat_id}"
-            )
+@bot.callback_query_handler(func=lambda call: call.data.startswith("set_admin_only_"))
+def set_admin_only(call):
+    choice = call.data.split("_")[3]  # yes/no
+    chat_id = int(call.data.split("_")[4])
+    user_id = call.from_user.id
+
+    if not is_admin_or_me(bot, chat_id, user_id):
+        bot.answer_callback_query(call.id, get_text(chat_id, 'no_rights'))
+        return
+
+    chat_settings[chat_id]["allow_registration"] = (choice == "yes")
+    bot.answer_callback_query(
+        call.id,
+        get_text(chat_id, 'admin_only_enabled') if choice == "yes" else get_text(chat_id, 'admin_only_disabled')
+    )
+
+    current = chat_settings[chat_id]['allow_registration']
+
+    commands_menu_kb = types.InlineKeyboardMarkup()
+    commands_menu_kb.add(
+        types.InlineKeyboardButton(
+            f"{'▪️' if current else '▫️'} {get_text(chat_id, 'yes')}",
+            callback_data=f"set_admin_only_yes_{chat_id}"
+        ),
+        types.InlineKeyboardButton(
+            f"{'▫️' if current else '▪️'} {get_text(chat_id, 'no')}",
+            callback_data=f"set_admin_only_no_{chat_id}"
         )
-        commands_menu_kb.add(types.InlineKeyboardButton(get_text(chat_id, 'back'), callback_data=f"main_menu_{chat_id}"))
-        bot.edit_message_text(get_text(chat_id, 'admin_question'),
-                            chat_id=user_id,
-                            message_id=call.message.message_id,
-                            reply_markup=commands_menu_kb)
-        bot.answer_callback_query(call.id, new_state)
+    )
+    commands_menu_kb.add(
+        types.InlineKeyboardButton(
+            get_text(chat_id, 'back'),
+            callback_data=f"main_menu_{chat_id}"
+        )
+    )
+
+    bot.edit_message_text(
+        get_text(chat_id, 'admin_question'),
+        chat_id=user_id,
+        message_id=call.message.message_id,
+        reply_markup=commands_menu_kb
+    )
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("set_mafia_ratio_"))
 def handle_mafia_ratio(call):
@@ -3832,7 +4352,6 @@ def handle_close_settings(call):
     bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
     bot.answer_callback_query(call.id, get_text(chat_id, 'menu_closed'))
 
-
 @bot.message_handler(commands=['game'])
 def create_game(message):
     chat_id = message.chat.id
@@ -3868,15 +4387,21 @@ def create_game(message):
     if chat_id not in chat_settings:
         chat_settings[chat_id] = {
             "language": "ru",
-            "allow_registration": True,
             "pin_registration": True,
+            "allow_registration": True,
             "allow_leave_game": True,
             "registration_time": (120, 60),
             "night_time": 45,
             "day_time": 60,
             "voting_time": 45,
+            "players_to_start": 20,
+            "anonymous_voting": False,
             "confirmation_time": 30,
-            "mafia_ratio": 4
+            "mafia_ratio": 4,
+            "shield_buff": True,
+            "docs_buff": True,
+            "hanging_shield_buff": True,
+            "gun_buff": True
         }
 
     chat_settings[chat_id].setdefault("allow_registration", True)
@@ -5433,7 +5958,7 @@ def leave_game(user_id, game_chat_id, send_private_message=True):
                     except Exception as e:
                         logging.error(f"Не удалось отправить личное сообщение игроку {user_id}: {e}")
 
-                if player['role'] == '🧔🏻‍♂️ Дон':
+                if player['role'] == '🤵🏻‍♂️ Дон':
                     check_and_transfer_don_role(chat)
 
                 if player['role'] == '🕵🏼 Комиссар':
@@ -5788,7 +6313,7 @@ def reset_scores_command(message):
 def all_night_actions_taken(chat):
     for player in chat.players.values():
         # Проверяем только живых игроков с активными ролями
-        if player['role'] in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон', '🕵🏼 Комиссар', '👨🏼‍⚕️ Дәрігер', '🧙‍♂️ Қаңғыбас', '💃🏼 Көңілдес', '👨🏼‍💼 Қорғаушы', '🔪 Жауыз'] and player['role'] != 'dead':
+        if player['role'] in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон', '🕵🏼 Комиссар', '👨🏼‍⚕️ Дәрігер', '🧙‍♂️ Қаңғыбас', '💃🏼 Көңілдес', '👨🏼‍💼 Қорғаушы', '🔪 Жауыз'] and player['role'] != 'dead':
             # Если игрок заблокирован или не выполнил действие, возвращаем False
             if player.get('voting_blocked', False) or not player.get('action_taken', False):
                 return False
@@ -5811,7 +6336,7 @@ def process_sheriff_actions(chat):
     if chat.lawyer_target and chat.sheriff_check and chat.lawyer_target == chat.sheriff_check:
         checked_player = chat.players[chat.sheriff_check]
 
-        if checked_player['role'] in {'🧔🏻‍♂️ Дон', '🤵🏻 Мафия'}:
+        if checked_player['role'] in {'🤵🏻‍♂️ Дон', '🤵🏻 Мафия'}:
             try:
                 if lang == 'kz':
                     send_message(chat.sheriff_id, f"Сен {get_full_name(checked_player)} дегенді тексеріп, оның рөлі - 👨🏼 Тату тұрғын екенін анықтадың.")
@@ -5842,7 +6367,7 @@ def process_sheriff_actions(chat):
     if chat.sheriff_check and chat.sheriff_check in chat.players:
         checked_player = chat.players[chat.sheriff_check]
         player_profile = player_profiles.get(chat.sheriff_check, {})
-        allowed_roles = {'🧔🏻‍♂️ Дон', '🔪 Жауыз', '🤵🏻 Мафия'}
+        allowed_roles = {'🤵🏻‍♂️ Дон', '🔪 Жауыз', '🤵🏻 Мафия'}
 
         if (player_profile.get('fake_docs', 0) > 0 and 
             not player_profile.get('fake_docs_used', False) and 
@@ -5954,7 +6479,7 @@ def handle_voting(chat):
                     name = get_full_name(target)
 
                     # Для мафии/дона
-                    if voter_role in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон'] and target['role'] in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон']:
+                    if voter_role in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон'] and target['role'] in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон']:
                         name = f"🤵🏻 {name}"
 
                     # Для полицейских
@@ -6038,16 +6563,22 @@ def handle_new_member(message):
 def setup_new_chat(chat_id):
     # Инициализируем настройки по умолчанию
     chat_settings[chat_id] = {
-        "language": "ru",  # По умолчанию казахский
-        "pin_registration": True,
-        "allow_registration": True,
-        "allow_leave_game": True,
-        "registration_time": (120, 60),
-        "night_time": 45,
-        "day_time": 60,
-        "voting_time": 45,
-        "confirmation_time": 30,
-        "mafia_ratio": 4
+        "language": "ru",
+            "pin_registration": True,
+            "allow_registration": True,
+            "allow_leave_game": True,
+            "registration_time": (120, 60),
+            "night_time": 45,
+            "day_time": 60,
+            "voting_time": 45,
+            "players_to_start": 20,
+            "anonymous_voting": False,
+            "confirmation_time": 30,
+            "mafia_ratio": 4,
+            "shield_buff": True,
+            "docs_buff": True,
+            "hanging_shield_buff": True,
+            "gun_buff": True
     }
     
     # Отправляем приветственное сообщение с выбором языка
@@ -6111,8 +6642,14 @@ def settings_handler_by_chat(chat_id):
             "night_time": 45,
             "day_time": 60,
             "voting_time": 45,
+            "players_to_start": 20,
+            "anonymous_voting": False,
             "confirmation_time": 30,
-            "mafia_ratio": 4
+            "mafia_ratio": 4,
+            "shield_buff": True,
+            "docs_buff": True,
+            "hanging_shield_buff": True,
+            "gun_buff": True
         }
 
     # Получаем администраторов чата
@@ -6174,7 +6711,7 @@ def process_lover_action(chat):
             # Блокируем голосование и действия цели
             lover_target['voting_blocked'] = True
 
-            if lover_target['role'] == '🧔🏻‍♂️ Дон':
+            if lover_target['role'] == '🤵🏻‍♂️ Дон':
                 don_blocked = True
             elif lover_target['role'] == '🕵🏼 Комиссар':
                 chat.sheriff_check = None
@@ -6265,9 +6802,11 @@ def process_hobo_action(chat):
         except Exception as e:
             logging.error(f"Не удалось отправить сообщение бомжу {chat.hobo_id} о пустой встрече: {e}")
 
+
 def send_night_actions(chat):
     """Отправляет кнопки для выполнения ночных действий в зависимости от роли игрока с учетом языка."""
     lang = chat_settings.get(chat.chat_id, {}).get("language", "kz")
+    gun_enabled = chat_settings.get(chat.chat_id, {}).get("gun_buff", True)  # ✅ Проверяем настройку пистолета
 
     for player_id, player in chat.players.items():
         if not chat.game_running:
@@ -6328,21 +6867,22 @@ def send_night_actions(chat):
                 if lang == 'ru':
                     list_btn(chat.players, player_id, 'маньяк', 'Кого убьём?', 'мк')
 
-            profile = get_or_create_profile(player_id, player['name'])
-            if profile['gun'] > 0 and not profile['gun_used'] and player['role'] != 'dead':
-                players_btn = types.InlineKeyboardMarkup()
-                for key, val in chat.players.items():
-                    if key != player_id and val['role'] != 'dead':
-                        players_btn.add(types.InlineKeyboardButton(val['name'], callback_data=f'{key}_gun'))
+            # ✅ Проверяем включен ли пистолет в настройках чата
+            if gun_enabled:
+                profile = get_or_create_profile(player_id, player['name'])
+                if profile['gun'] > 0 and not profile['gun_used'] and player['role'] != 'dead':
+                    players_btn = types.InlineKeyboardMarkup()
+                    for key, val in chat.players.items():
+                        if key != player_id and val['role'] != 'dead':
+                            players_btn.add(types.InlineKeyboardButton(val['name'], callback_data=f'{key}_gun'))
 
-                if lang == 'kz':
-                    send_message(player_id, "🔫 Кімді көздейсің?", reply_markup=players_btn)
-                if lang == 'ru':
-                    send_message(player_id, "🔫 В кого целишься?", reply_markup=players_btn)
+                    if lang == 'kz':
+                        send_message(player_id, "🔫 Кімді көздейсің?", reply_markup=players_btn)
+                    if lang == 'ru':
+                        send_message(player_id, "🔫 В кого целишься?", reply_markup=players_btn)
 
         except Exception as e:
             logging.error(f"Не удалось отправить сообщение игроку {player_id}: {e}")
-
 
 
 # Обновленный код для функции game_cycle
@@ -6872,7 +7412,7 @@ def callback_handler(call):
                                          else f"🕵🏼 Комиссар {chat.players[from_id]['name']} выстрелил в {chat.players[target_id]['name']}.")
                         send_message(chat.sergeant_id, sergeant_message)
 
-                elif player_role in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон'] and action == 'м':
+                elif player_role in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон'] and action == 'м':
                     if not handle_night_action(call, chat, player_role):
                         return
 
@@ -6889,13 +7429,13 @@ def callback_handler(call):
                         chat.mafia_votes[from_id] = target_id
                         voter_name = f"{chat.players[from_id]['name']} {chat.players[from_id].get('last_name', '')}".strip()
         
-                        if player_role == '🧔🏻‍♂️ Дон':
-                            send_message_to_mafia(chat, f"🧔🏻‍♂️ *Дон* [{voter_name}](tg://user?id={from_id}) дауыс берді {victim_name}" if lang == 'kz' 
-                                              else f"🧔🏻‍♂️ *Дон* [{voter_name}](tg://user?id={from_id}) проголосовал за {victim_name}")
+                        if player_role == '🤵🏻‍♂️ Дон':
+                            send_message_to_mafia(chat, f"🤵🏻‍♂️ *Дон* [{voter_name}](tg://user?id={from_id}) дауыс берді {victim_name}" if lang == 'kz' 
+                                              else f"🤵🏻‍♂️ *Дон* [{voter_name}](tg://user?id={from_id}) проголосовал за {victim_name}")
                             for player_id, player in chat.players.items():
                                 if player['role'] == '👨🏼‍💼 Қорғаушы':
-                                    send_message(player_id, f"🧔🏻‍♂️ Дон ??? дауыс берді {victim_name}" if lang == 'kz' 
-                                              else f"🧔🏻‍♂️ Дон ??? проголосовал за {victim_name}")
+                                    send_message(player_id, f"🤵🏻‍♂️ Дон ??? дауыс берді {victim_name}" if lang == 'kz' 
+                                              else f"🤵🏻‍♂️ Дон ??? проголосовал за {victim_name}")
                         else:
                             send_message_to_mafia(chat, f"🤵🏻 Мафия [{voter_name}](tg://user?id={from_id}) дауыс берді {victim_name}" if lang == 'kz' 
                                               else f"🤵🏻 Мафия [{voter_name}](tg://user?id={from_id}) проголосовал за {victim_name}")
@@ -7139,7 +7679,7 @@ def handle_private_message(message):
                 except Exception as e:
                     logging.error(f"Не удалось отправить сообщение от Сержанта {user_id} к Комиссару {chat.sheriff_id}: {e}")
 
-            elif chat.players[user_id]['role'] in ['🧔🏻‍♂️ Дон', '🤵🏻 Мафия']:
+            elif chat.players[user_id]['role'] in ['🤵🏻‍♂️ Дон', '🤵🏻 Мафия']:
                 mafia_name = f"{chat.players[user_id]['name']}"
                 mafia_last_name = chat.players[user_id].get('last_name', '')
                 try:
