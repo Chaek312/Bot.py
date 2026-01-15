@@ -2988,7 +2988,7 @@ def join_chat_callback(call):
     # ❗ Чаты, к которым надо дать кнопку
     #   key = chat_id группы
     chat_targets = [
-        -1002571779811    # Premium KZ
+        -1003411473049    # Premium KZ
     ]
 
     # Создаём клавиатуру
