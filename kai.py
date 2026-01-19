@@ -315,7 +315,7 @@ def _start_game(chat_id):
         return
 
     # Проверка минимального количества игроков
-    if len(chat.players) < 3:
+    if len(chat.players) < 4:
         if lang == "kz":
             send_message(chat_id, '*Ойынды бастау үшін адам жеткіліксіз...*', parse_mode="Markdown")
         if lang == "ru":
@@ -389,7 +389,7 @@ def _start_game(chat_id):
         roles_assigned += 1
 
     # Назначение Самоубийцы (при 30+ игроках)
-    if roles_assigned < num_players and num_players >= 9:
+    if roles_assigned < num_players and num_players >= 40:
         change_role(players_list[roles_assigned][0], chat.players, '🤦🏼 Самоубийца', '', chat)
         chat.suicide_bomber_id = players_list[roles_assigned][0]
         roles_assigned += 1
@@ -1662,7 +1662,7 @@ def send_voting_results(chat, yes_votes, no_votes, player_name=None, player_last
     # Словарь переводов ролей
     role_translations = {
         'ru': {
-            '🧔🏻‍♂️ Дон': '🧔🏻‍♂️ Дон',
+            '🤵🏻‍♂️ Дон': '🤵🏻‍♂️ Дон',
             '🤵🏻 Мафия': '🤵🏻 Мафия',
             '👨🏼‍⚕️ Дәрігер': '👨🏼‍⚕️ Доктор',
             '🕵🏼 Комиссар': '🕵🏼 Комиссар',
@@ -1677,7 +1677,7 @@ def send_voting_results(chat, yes_votes, no_votes, player_name=None, player_last
             '🤦🏼 Самоубийца': '🤦🏼 Суицид'
         },
         'kz': {
-            '🧔🏻‍♂️ Дон': '🧔🏻‍♂️ Дон',
+            '🤵🏻‍♂️ Дон': '🤵🏻‍♂️ Дон',
             '🤵🏻 Мафия': '🤵🏻 Мафия',
             '👨🏼‍⚕️ Дәрігер': '👨🏼‍⚕️ Дәрігер',
             '🕵🏼 Комиссар': '🕵🏼 Комиссар',
@@ -2131,7 +2131,7 @@ def process_deaths(chat, killed_by_mafia, killed_by_sheriff, killed_by_bomber=No
 
     if killed_by_mafia:
         victim_id, victim = killed_by_mafia
-        deaths[victim_id] = {'victim': victim, 'roles': ['🧔🏻‍♂️ Дон']}
+        deaths[victim_id] = {'victim': victim, 'roles': ['🤵🏻‍♂️ Дон']}
 
     if killed_by_sheriff:
         victim_id, victim = killed_by_sheriff
@@ -2210,7 +2210,7 @@ def process_deaths(chat, killed_by_mafia, killed_by_sheriff, killed_by_bomber=No
         if victim['role'] == '💣 Камикадзе':
             for killer_role in roles_involved:
                 killer_id = None
-                if killer_role == '🧔🏻‍♂️ Дон' and chat.don_id:
+                if killer_role == '🤵🏻‍♂️ Дон' and chat.don_id:
                     killer_id = chat.don_id
                 elif killer_role == '🕵🏼 Комиссар' and chat.sheriff_id:
                     killer_id = chat.sheriff_id
@@ -6813,7 +6813,7 @@ def send_night_actions(chat):
             break
 
         try:
-            if player['role'] in ['🤵🏻 Мафия', '🧔🏻‍♂️ Дон']:
+            if player['role'] in ['🤵🏻 Мафия', '🤵🏻‍♂️ Дон']:
                 if lang == 'kz':
                     list_btn(chat.players, player_id, 'мафия', 'Кімді құрбан етеміз?', 'м')
                 if lang == 'ru':
